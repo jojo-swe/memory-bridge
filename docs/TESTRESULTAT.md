@@ -1,3 +1,12 @@
+## 0.9.0 – verifierad fjärrintegritet
+
+PR #2 mergad. Run https://github.com/jojo-swe/memory-bridge/actions/runs/40194256363
+rapporterar **145 godkända tester, inga överhoppade**. Lokalt:133 godkända,
+tolv nätverkstester överhoppade. SHA-256-kontroll täcker fulla block även
+vid partiella läsningar. Regressioner verifierar korrupta svar med rätt längd,
+fel utanför begärd del, batchfel, överskrivning och frigöring av metadata.
+Givaren kan fortfarande läsa data. Lokal lagring är betrodd.
+
 ## 0.8.0 – beständig sidlagring och verifierad omstart
 
 [PR #1](https://github.com/jojo-swe/memory-bridge/pull/1) mergad till main.
