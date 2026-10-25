@@ -53,7 +53,7 @@ Paketet kan även installeras med `python3 -m pip install .`; då finns kommando
 projektmappen enligt instruktionerna nedan och installeras inte som CLI.
 
 Läs [arkitekturen](docs/ARKITEKTUR.md) för tillstånd, säkerhetsgränser och vad
-som återstår. Version 0.7.0: alla 119 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40188868175), inklusive NBD/TLS på loopback.
+som återstår. Alla 138 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40189544566), inklusive NBD/TLS på loopback.
 
 Arbetsnamn, inte kontrollerat varumärke. En första byggsten för att låna RAM
 från en annan Linux-dator på ett betrott hemnätverk.
@@ -72,9 +72,10 @@ swap-integration återstår.
 - Enhetstester och separata integrationstester för TLS och bortkoppling.
 
 Givaren kan läsa innehållet: TLS skyddar överföringen, inte mot givardatorns
-administratör. Ingen replikering, beständig kopia, återanslutning, automatisk
+administratör. Ingen replikering, återanslutning, automatisk
 minnesåterlämning, GUI, Windows-integration eller publik minnespool finns ännu.
-Data försvinner när givaren stängs eller sessionen avslutas. Använd syntetiska
+Givarens RAM-data försvinner när givaren stängs eller sessionen avslutas.
+Låntagaren kan välja temporär eller beständig lokal kopia enligt avsnitten nedan. Använd syntetiska
 testdata och anslut inte lagret som swap på din vardagsdator.
 
 ## Börja på en Linux-testdator
@@ -176,7 +177,7 @@ tillfälliga; diskutrymme reserveras med `posix_fallocate` där det finns.
 Välj en disk, inte tmpfs, vid minnesmätning. OS:ets filcache kan fortfarande
 använda RAM. Filen raderas vid stängning, vilket inte är säker radering.
 
-Från 0.5.0 kan bibliotekslagret anslutas till NBD med klienten nedan. Det skyddar inte
+Från 0.5.0 kan bibliotekslagret anslutas till NBD med klienten nedan. Med temporär standardbakända skyddar det inte
 mot processkrasch, strömavbrott eller en givare som returnerar felaktigt
 innehåll med rätt längd. Generiska bakändar måste själva begränsa väntetiden; NBD-klienten nedan gör det.
 Ingen återanslutning eller automatisk återuppbyggnad av cache sker. En lokal

@@ -100,8 +100,9 @@ och väntar högst 0,25 sekunder på avslut. Misslyckad städning rapporteras.
 
 Det finns inga automatiska återförsök av osäkra nätverksskrivningar. Lokal
 skrivning har redan lyckats innan en sådan skickas, så cachefel behöver inte
-förlora den lokala uppdateringen. Varken fsync, kraschåterställning eller
-integritetskontroll mot illvillig givare ingår. Föräldraprocessens plötsliga
+förlora den lokala uppdateringen. Temporär standardbakända saknar fsync och
+kraschåterställning; beständig bakända finns från 0.8. Integritetskontroll mot
+illvillig givare ingår inte. Föräldraprocessens plötsliga
 krasch kan lämna en worker kvar om den sitter fast inne i ett nätverksanrop.
 
 `recovery_client.py` kopplar ihop delarna för ett syntetiskt experiment.

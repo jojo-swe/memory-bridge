@@ -1,3 +1,28 @@
+## 0.8.0 – beständig sidlagring och verifierad omstart
+
+[PR #1](https://github.com/jojo-swe/memory-bridge/pull/1) mergad till main.
+[Run 40189544566](https://github.com/jojo-swe/memory-bridge/actions/runs/40189544566):
+**138 godkända tester, inga överhoppade**, testat PR-head
+`eeae0f237d22aec5e3e93eb9ba218c5169bb37a6`, merge
+`cf3acb24ff468cce21a6380206541a5afa995aa9`.
+
+126 tester passerade lokalt; tolv nätverkstester kördes i CI. Wheelbygge och
+import/läs-skriv-återöppning från det byggda paketet passerade separat.
+
+Nytt verifierat:
+
+- Bekräftad lokal skrivning överlever SIGKILL av klientprocessen.
+- Oavslutad transaktion med utspillda sidor rullas tillbaka efter SIGKILL före commit.
+- Skrivning via TLS/NBD, avstängd givare och verifiering i en ny lokal klientprocess.
+- Atomisk rollback över flera block, fel filformat, storlekskontroll och stora felaktiga blobs.
+- Privata filer, nekade symlänkar/hårda länkar och samtidiga öppningar.
+- Låset behålls om SQLite-stängning avbryts; nästa öppning tillåts först efter lyckad städning.
+- Bibliotekets versionsnummer matchar distributionsmetadata.
+
+Processkrasch är verifierad, inte fysiskt strömavbrott. Databasens beständighet
+förutsätter korrekt filsystem/disk-synkronisering. Befintlig temporär bakända
+och benchmarkers beständighetsnivå är oförändrade.
+
 ## 0.7.0 – komplett loopback-labb och mindre klientmetadata
 
 [Run 40188868175](https://github.com/jojo-swe/memory-bridge/actions/runs/40188868175):
