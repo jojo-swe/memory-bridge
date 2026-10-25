@@ -53,7 +53,7 @@ Paketet kan även installeras med `python3 -m pip install .`; då finns kommando
 projektmappen enligt instruktionerna nedan och installeras inte som CLI.
 
 Läs [arkitekturen](docs/ARKITEKTUR.md) för tillstånd, säkerhetsgränser och vad
-som återstår. Alla 145 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40194256363), inklusive NBD/TLS på loopback.
+som återstår. Alla 149 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40195407580), inklusive NBD/TLS på loopback.
 
 Arbetsnamn, inte kontrollerat varumärke. En första byggsten för att låna RAM
 från en annan Linux-dator på ett betrott hemnätverk.

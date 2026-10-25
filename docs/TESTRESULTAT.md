@@ -1,3 +1,12 @@
+## 0.10.0 – fristående installerat CLI
+
+PR #3 mergad. https://github.com/jojo-swe/memory-bridge/actions/runs/40195407580
+rapporterar **149 godkända tester, inga överhoppade**. Paketet innehåller alla
+kommandon och NBD-pluginen. Paketkopian utan repots rotskript klarar hela
+TLS/NBD-labbet i CI. Lokalt:136 godkända,13 överhoppade. Wheel byggdes och
+installerades i en ny venv: console entry point, jämförelse och beständig
+create/verify fungerade från en annan katalog.
+
 ## 0.9.0 – verifierad fjärrintegritet
 
 PR #2 mergad. Run https://github.com/jojo-swe/memory-bridge/actions/runs/40194256363
