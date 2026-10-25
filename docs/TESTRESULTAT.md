@@ -1,3 +1,11 @@
+## 0.4.0 – CI verifierad
+
+[Run 40184413461](https://github.com/jojo-swe/memory-bridge/actions/runs/40184413461):
+**69 godkända tester, inga överhoppade**, på commit
+`7a67aedf5fd718939aacd29b1cf4913901bd691f`. Båda demokommandona passerade.
+NBD/TLS-testerna avser den befintliga transporten; det nya återhämtningslagret
+testades med lokal fil och simulerad givare.
+
 ## 0.4.0 – lokal verifiering
 
 69 tester: 65 godkända, 4 NBD/TLS-tester hoppas över eftersom systempaketen
