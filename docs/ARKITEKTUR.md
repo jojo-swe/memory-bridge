@@ -158,3 +158,12 @@ Backendens transaktionsgarantier bygger på SQLite och lagringens
 synkroniseringsgarantier. Tester simulerar processkrasch, inte diskhaveri.
 Se https://www.sqlite.org/atomiccommit.html och
 https://www.sqlite.org/pragma.html#pragma_synchronous.
+
+## Integritetskontroll i 0.9
+
+Varje bekräftat cacheblock har en SHA-256-digest i låntagarens minne.
+Fjärrläsningar hämtar fullständiga block och verifierar dem innan data lämnas
+till anroparen. Vid avvikelse används lokal kopia och all fjärrgiltighet
+avvecklas. Digestlagret är begränsat till 32 byte per block. TLS och
+integritetskontrollen döljer inte klartexten från givaren. Lokal lagring
+och låntagarprocessen är fortsatt betrodda.

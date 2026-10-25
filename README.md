@@ -1,4 +1,4 @@
-# Memory Bridge — ramverk 0.8.0
+# Memory Bridge — ramverk 0.9.0
 
 ## Hela labbet med ett kommando
 
@@ -296,3 +296,14 @@ synkronisering är inte verifierade. En skrivning som saknar bekräftelse kan
 efter omstart vara helt genomförd eller helt återställd. Ingen automatisk
 upprepning görs. Disken behöver plats för data, databasoverhead och journal;
 hela den logiska kapaciteten förallokeras inte. Detta är fortfarande inte swap.
+
+## Verifierat innehåll från givaren i 0.9
+
+Låntagaren sparar SHA-256 för varje block som speglas. Hela blocket verifieras
+före läsning, även om bara några byte efterfrågas. Felaktigt innehåll gör att
+hela fjärrcachen överges och den lokala kopian används. Metadata kostar
+32 byte per block, cirka 8 MiB per GiB export, utöver bitmap och processer.
+Digestdata hålls lokalt och cachen börjar ogiltig efter varje omstart.
+
+Detta upptäcker felaktiga givarsvar utan att förhindra att givaren läser
+innehållet. Kryptering mot givarens administratör ingår fortfarande inte.

@@ -333,3 +333,79 @@ class CancellationTests(unittest.TestCase):
         self.assertTrue(remote.closed)
         with self.assertRaises(BackendError):
             storage.close()
+
+
+class IntegrityTests(unittest.TestCase):
+    make_storage = BatchedResilientTests.make_storage
+
+    def test_same_length_remote_corruption_falls_back(self):
+        storage, local, remote = self.make_storage()
+        storage.write(0, b'valid' * 819)
+        remote.data[1] ^= 255
+        self.assertEqual(storage.read(0, 4096), bytes(local.data[:4096]))
+        self.assertFalse(storage.snapshot()['remote_enabled'])
+        self.assertEqual(storage.snapshot()['integrity_bytes'], 0)
+        self.assertEqual(storage.snapshot()['valid_bitmap_bytes'], 0)
+
+    def test_partial_read_verifies_entire_block(self):
+        storage, local, remote = self.make_storage()
+        storage.write(0, b'a' * 4096)
+        remote.data[4095] = ord('b')
+        remote.calls.clear()
+        self.assertEqual(storage.read(1, 1), b'a')
+        self.assertEqual(remote.calls, [('read', 0, 4096)])
+        self.assertFalse(storage.snapshot()['remote_enabled'])
+        self.assertEqual(local.calls[-1], ('read', 1, 1))
+
+    def test_late_block_mismatch_falls_back_for_entire_batch(self):
+        storage, local, remote = self.make_storage(transfer=16384)
+        expected = b'a' * 16384
+        storage.write(0, expected)
+        remote.data[16383] = ord('b')
+        local.calls.clear()
+        remote.calls.clear()
+        self.assertEqual(storage.read(0, 16384), expected)
+        self.assertEqual(remote.calls, [('read', 0, 16384)])
+        self.assertEqual(local.calls, [('read', 0, 16384)])
+        self.assertEqual(storage.snapshot()['cached_blocks'], 0)
+
+    def test_partial_edge_remote_batches_never_exceed_transfer_size(self):
+        storage, local, remote = self.make_storage(transfer=8192)
+        storage.write(0, b'a' * 16384)
+        remote.calls.clear()
+        self.assertEqual(storage.read(4095, 8194), b'a' * 8194)
+        self.assertEqual(remote.calls, [('read', 0, 8192), ('read', 8192, 8192)])
+        self.assertTrue(storage.snapshot()['remote_enabled'])
+
+    def test_overwrites_replace_digest_and_detect_stale_remote_content(self):
+        storage, local, remote = self.make_storage()
+        storage.write(0, b'a' * 8192)
+        stale = bytes(remote.data[:4096])
+        storage.write(2, b'new')
+        self.assertEqual(storage.read(0, 8192), bytes(local.data[:8192]))
+        self.assertTrue(storage.snapshot()['remote_enabled'])
+        self.assertEqual(storage.snapshot()['cached_blocks'], 2)
+        remote.data[:4096] = stale
+        self.assertEqual(storage.read(0, 4096), bytes(local.data[:4096]))
+        self.assertFalse(storage.snapshot()['remote_enabled'])
+
+    def test_integrity_allocation_lifecycle(self):
+        storage, local, remote = self.make_storage(blocks=17)
+        self.assertEqual(storage.snapshot()['integrity_bytes'], 17 * 32)
+        self.assertEqual(storage.snapshot()['cached_blocks'], 0)
+        storage.close()
+        self.assertEqual(storage.snapshot()['integrity_bytes'], 0)
+        local_only, _, _ = self.make_storage(remote=False)
+        self.assertEqual(local_only.snapshot()['integrity_bytes'], 0)
+        failed, _, donor = self.make_storage()
+        donor.fail_writes = True
+        failed.write(0, b'x')
+        self.assertEqual(failed.snapshot()['integrity_bytes'], 0)
+
+    def test_terminal_local_failure_releases_integrity_allocation(self):
+        storage, local, _ = self.make_storage()
+        storage.write(0, b'a' * 4096)
+        local.fail_writes = True
+        with self.assertRaises(BackendError):
+            storage.write(0, b'x')
+        self.assertEqual(storage.snapshot()['integrity_bytes'], 0)

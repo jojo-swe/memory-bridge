@@ -1,3 +1,9 @@
+## 0.9.0
+
+- Verify every remote cache block against a locally retained SHA-256 digest before exposing data.
+- Verify complete blocks for partial reads; discard the cache and use local backing on mismatch.
+- Bound integrity metadata and release it after failure or shutdown.
+
 ## 0.8.0
 
 - Add opt-in persistent SQLite page backing with atomic writes and exclusive ownership.
