@@ -83,7 +83,9 @@ class NetworkTests(unittest.TestCase):
             child = subprocess.Popen([sys.executable, "-c", code], stdin=subprocess.PIPE,
                                      stdout=output, stderr=subprocess.PIPE, text=True)
             try:
-                deadline = time.monotonic() + 5
+                # Generous: a loaded CI runner can take seconds to start a TLS
+                # client; the test checks the outcome, not connection speed.
+                deadline = time.monotonic() + 20
                 ready = False
                 while time.monotonic() < deadline:
                     output.seek(0)
