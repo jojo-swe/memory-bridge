@@ -187,3 +187,14 @@ class NetworkTests(unittest.TestCase):
         self.assertEqual(remote['cache']['valid_bitmap_bytes'], 32)
         self.assertTrue(remote['cache']['remote_enabled'])
         print('BATCHED_COMPARISON_RESULT=' + json.dumps(report), flush=True)
+
+    def test_persistent_checkpoint_survives_donor_and_client_restart(self):
+        path = Path(self.directory.name) / 'checkpoint.db'
+        created = subprocess.run([sys.executable, 'checkpoint_demo.py', 'create', str(path),
+                                  '--key', str(self.key), '--port', str(self.port)],
+                                 capture_output=True, text=True, timeout=10)
+        self.assertEqual(created.returncode, 0, created.stderr)
+        self.stop_donor()
+        verified = subprocess.run([sys.executable, 'checkpoint_demo.py', 'verify', str(path)],
+                                  capture_output=True, text=True, timeout=8)
+        self.assertEqual(verified.returncode, 0, verified.stderr)

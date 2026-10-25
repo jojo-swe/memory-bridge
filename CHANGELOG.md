@@ -1,3 +1,11 @@
+## 0.8.0
+
+- Add opt-in persistent SQLite page backing with atomic writes and exclusive ownership.
+- Add restart verification with optional TLS/NBD mirroring and real SIGKILL tests.
+- Preserve the ownership lock after interrupted database cleanup.
+- Synchronize library/distribution version metadata and test the invariant.
+- Existing benchmarks retain temporary backing; no automatic data migration.
+
 ## 0.7.0
 
 - Replace per-block Python sets with one-bit validity maps.

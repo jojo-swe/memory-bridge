@@ -1,3 +1,3 @@
-"""Memory Bridge: experimental memory-sharing framework, version 0.7.0."""
+"""Memory Bridge: experimental memory-sharing framework."""
 
-__version__ = "0.4.0"
+__version__ = "0.8.0"

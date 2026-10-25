@@ -1,4 +1,4 @@
-# Memory Bridge 0.7 – körguide
+# Memory Bridge 0.8 – körguide
 
 ## Vad som är färdigt
 
@@ -78,6 +78,15 @@ representativa arbetslaster, riktig LAN-latens och kontrollerat systemminnestryc
 
 ## Kvar före konsumentprodukt
 
-Fysisk LAN/VM-verifiering, mätbar nytta under RAM-brist, beständig återställning,
+Fysisk LAN/VM-verifiering, mätbar nytta under RAM-brist, verifiering av beständighet vid strömavbrott,
 integritetsskydd mot opålitliga givare, plattformsintegration och användargränssnitt.
 Ingen kernel-/swapkoppling ska sättas på en vardagsdator utifrån dessa labbresultat.
+
+## Behåll lokal kopia efter omstart
+
+`checkpoint_demo.py create checkpoint.db` skapar en ny privat databas och
+skriver endast syntetiska testdata. `checkpoint_demo.py verify checkpoint.db`
+kontrollerar den i en ny process utan nätverk. Filerna är beständiga och måste
+raderas av dig när testet är klart. Detta är ett annat backend än labbets
+temporära fil och har andra skrivkostnader; jämför inte deras resultat som
+om de hade samma beständighetskrav. Fullständiga begränsningar finns i README.

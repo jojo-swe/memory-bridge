@@ -1,4 +1,4 @@
-# Memory Bridge — ramverk 0.7.0
+# Memory Bridge — ramverk 0.8.0
 
 ## Hela labbet med ett kommando
 
@@ -53,7 +53,7 @@ Paketet kan även installeras med `python3 -m pip install .`; då finns kommando
 projektmappen enligt instruktionerna nedan och installeras inte som CLI.
 
 Läs [arkitekturen](docs/ARKITEKTUR.md) för tillstånd, säkerhetsgränser och vad
-som återstår. Alla 119 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40188868175), inklusive NBD/TLS på loopback.
+som återstår. Version 0.7.0: alla 119 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40188868175), inklusive NBD/TLS på loopback.
 
 Arbetsnamn, inte kontrollerat varumärke. En första byggsten för att låna RAM
 från en annan Linux-dator på ett betrott hemnätverk.
@@ -264,3 +264,34 @@ ett test av hela systemets minnestryck i en VM eller delegerad cgroup.
 Version 0.7.0 har även verifierats med 64 KiB-anrop och en adressrymdsgräns
 på 128 MiB per klientprocess. [Rårapport](docs/benchmark-ci-0.7.0.json).
 Fjärrläget var fortfarande långsammare i detta lilla loopback-prov.
+
+## Beständig lokal kopia i 0.8.0
+
+Det nya valfria `PersistentStorage` sparar sidor i en privat SQLite-databas.
+Varje skrivning är en transaktion, även över flera block. Bekräftelse sker efter
+lokal commit; SQLite använder rollback-journal och `synchronous=EXTRA`.
+Det befintliga labbet använder fortfarande temporära filer för sina benchmarks.
+
+Testa beständighet med syntetiska data utan givare:
+
+```bash
+python3 checkpoint_demo.py create checkpoint.db
+python3 checkpoint_demo.py verify checkpoint.db
+```
+
+`create` vägrar skriva över en befintlig fil. `verify` öppnar den efter omstart
+och behöver ingen givare. För nätverkstest, starta en ny 1 MiB-givare och lägg
+till `--key session.psk` (och `--host` för LAN) vid `create`. Stäng sedan givaren
+och kör `verify`. Den lokala filen **behålls** efter avslut och är inte krypterad.
+
+Samtidiga öppningar nekas med ett exklusivt fil-lås. Sökvägen och dess katalog
+måste vara betrodda och stabila. Flytta inte databasen eller dess journal under
+drift; kopiera inte en aktiv databas som backup. En misslyckad initiering kan
+lämna en privat fil som behöver granskas innan ett nytt försök.
+
+Vi testar SIGKILL efter bekräftad skrivning och före commit med utspillda
+databassidor. Strömavbrott, trasig hårdvara och filsystem som inte respekterar
+synkronisering är inte verifierade. En skrivning som saknar bekräftelse kan
+efter omstart vara helt genomförd eller helt återställd. Ingen automatisk
+upprepning görs. Disken behöver plats för data, databasoverhead och journal;
+hela den logiska kapaciteten förallokeras inte. Detta är fortfarande inte swap.
