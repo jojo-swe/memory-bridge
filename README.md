@@ -1,4 +1,4 @@
-# Memory Bridge — ramverk 0.9.0
+# Memory Bridge — ramverk 0.10.0
 
 ## Hela labbet med ett kommando
 
@@ -307,3 +307,21 @@ Digestdata hålls lokalt och cachen börjar ogiltig efter varje omstart.
 
 Detta upptäcker felaktiga givarsvar utan att förhindra att givaren läser
 innehållet. Kryptering mot givarens administratör ingår fortfarande inte.
+
+## Installerade kommandon i 0.10
+
+Alla labbkommandon ingår nu i Python-paketet och kan köras utan projektmappen:
+
+```bash
+python3 -m venv --system-site-packages .venv
+.venv/bin/python -m pip install .
+.venv/bin/memory-bridge lab --operations 256
+.venv/bin/memory-bridge checkpoint create checkpoint.db
+.venv/bin/memory-bridge checkpoint verify checkpoint.db
+```
+
+På Ubuntu behövs `python3-venv` för miljön. `--system-site-packages` gör
+Ubuntu-paketets libnbd-bindning tillgänglig; NBD-systempaketen krävs fortfarande.
+Övriga kommandon är `compare`, `benchmark`, `recover`, `donor` och `keygen`.
+Använd `memory-bridge KOMMANDO --help`. Befintliga skript i repots rot fungerar
+som kompatibilitetsingångar. Paketet installerar ingen tjänst automatiskt.

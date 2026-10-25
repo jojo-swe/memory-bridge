@@ -1,3 +1,10 @@
+## 0.10.0
+
+- Package all experiment commands and the NBD plugin.
+- Expose commands through the installed memory-bridge entry point.
+- Invoke worker modules without relying on checkout-relative scripts.
+- Preserve root script compatibility and test package-only execution.
+
 ## 0.9.0
 
 - Verify every remote cache block against a locally retained SHA-256 digest before exposing data.
