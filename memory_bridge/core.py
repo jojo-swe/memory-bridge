@@ -134,12 +134,27 @@ class MemoryPool:
         session = self._sessions.pop(token)
         try:
             session.storage.close()
-        except Exception:
+        except BaseException as error:
             # Keep a strong reference and account for resources that could not
             # be released. Do not leak backend exception text into telemetry.
             self._quarantine.append(session)
             self._errors += 1
+            if not isinstance(error, Exception):
+                raise
             raise BackendError("Cleanup failed; capacity quarantined") from None
+
+    def _failed_io(self, token, error, message):
+        self._errors += 1
+        try:
+            self._retire(token)
+        except BaseException:
+            # Preserve the original cancellation even if cleanup also fails.
+            # _retire has already retained uncertain resources in quarantine.
+            if isinstance(error, Exception):
+                raise
+        if not isinstance(error, Exception):
+            raise error
+        raise BackendError(message) from None
 
     def read(self, token: str, offset: int, count: int) -> bytes:
         with self._lock:
@@ -149,10 +164,8 @@ class MemoryPool:
                 data = session.storage.read(offset, count)
                 if not isinstance(data, bytes) or len(data) != count:
                     raise OSError("Short or malformed read")
-            except Exception:
-                self._errors += 1
-                self._retire(token)
-                raise BackendError("Read failed; session invalidated") from None
+            except BaseException as error:
+                self._failed_io(token, error, "Read failed; session invalidated")
             self._reads += count
             return data
 
@@ -164,12 +177,10 @@ class MemoryPool:
             self._validate_io(session, offset, len(data))
             try:
                 session.storage.write(offset, data)
-            except Exception:
+            except BaseException as error:
                 # A failed write may have partially changed memory. Retrying
                 # silently would hide an ambiguous write, so revoke the token.
-                self._errors += 1
-                self._retire(token)
-                raise BackendError("Write failed; session invalidated") from None
+                self._failed_io(token, error, "Write failed; session invalidated")
             self._writes += len(data)
 
     def release(self, token: str) -> None:
@@ -206,11 +217,17 @@ class MemoryPool:
             # Attempt every cleanup even when one backend fails. Quarantined
             # allocations are retained until process exit; restart is required.
             failed = False
+            cancellation = None
             for token in list(self._sessions):
                 try:
                     self._retire(token)
                 except BackendError:
                     failed = True
+                except BaseException as error:
+                    if cancellation is None:
+                        cancellation = error
+            if cancellation is not None:
+                raise cancellation
             if failed or self._quarantine:
                 raise BackendError("Pool closed with quarantined capacity")
 

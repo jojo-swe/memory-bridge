@@ -195,3 +195,32 @@ class WorkerTests(unittest.TestCase):
         handle.set_tls_psk_file.assert_called_once_with('/key')
         handle.connect_tcp.assert_called_once_with('localhost', '10809')
         handle.pread.assert_not_called()
+
+class CancellationTests(unittest.TestCase):
+    def test_interrupted_handshake_reaps_worker(self):
+        processes = []
+
+        def fake(fd):
+            process = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(20)'])
+            processes.append(process)
+            return process
+
+        with patch.object(RemoteNBDStorage, '_launch', side_effect=fake), \
+                patch.object(RemoteNBDStorage, '_exchange', side_effect=KeyboardInterrupt):
+            with self.assertRaises(KeyboardInterrupt):
+                RemoteNBDStorage('localhost', 10809, '/key', 8192)
+        self.assertIsNotNone(processes[0].poll())
+
+    def test_interrupted_operation_reaps_worker_and_revokes_transport(self):
+        def fake(fd):
+            return subprocess.Popen([sys.executable, '-c', _FAKE, str(fd), 'ok'], pass_fds=(fd,))
+
+        with patch.object(RemoteNBDStorage, '_launch', side_effect=fake):
+            storage = RemoteNBDStorage('localhost', 10809, '/key', 8192)
+        self.addCleanup(storage.close)
+        with patch.object(storage, '_exchange', side_effect=KeyboardInterrupt):
+            with self.assertRaises(KeyboardInterrupt):
+                storage.read(0, 1)
+        self.assertIsNotNone(storage._process.poll())
+        with self.assertRaises(BackendError):
+            storage.read(0, 1)

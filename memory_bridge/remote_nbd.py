@@ -56,15 +56,18 @@ class RemoteNBDStorage:
             response = self._exchange(b"H" + request, 1)
             if response != b"K":
                 raise ValueError("Invalid handshake")
-        except Exception:
+        except BaseException as error:
             child.close()
             self._stop()
+            if not isinstance(error, Exception):
+                raise  # Cancellation must clean up without being swallowed.
             raise BackendError("Remote connection failed") from None
 
     @staticmethod
     def _launch(fd):
         return subprocess.Popen([sys.executable, "-m", "memory_bridge.nbd_worker", str(fd)],
-                                pass_fds=(fd,), stdin=subprocess.DEVNULL,
+                                pass_fds=(fd,), cwd=Path(__file__).resolve().parent.parent,
+                                stdin=subprocess.DEVNULL,
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def _remaining(self, deadline):
@@ -111,8 +114,10 @@ class RemoteNBDStorage:
             if len(response) != response_length:
                 raise ValueError("Malformed response")
             return response[1:]
-        except Exception:
+        except BaseException as error:
             self._stop()
+            if not isinstance(error, Exception):
+                raise
             raise BackendError("Remote operation failed; storage invalidated") from None
 
     def read(self, offset, count):

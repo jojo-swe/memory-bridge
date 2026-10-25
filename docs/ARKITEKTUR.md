@@ -1,4 +1,4 @@
-# Arkitektur och kontrakt — 0.6
+# Arkitektur och kontrakt — 0.7
 
 ## Moduler
 
@@ -120,3 +120,22 @@ JSON. Frisk fjärrcache krävs för ett giltigt fjärrresultat. En tidsgräns f�
 hela körningen stoppar också eventuella fastnade NBD-barnprocesser. RSS-toppar
 mäts separat efter städning. Ingen slutsats om verklig RAM-besparing kan dras
 utan även mätning av givare, systemfilcache och en representativ arbetslast.
+
+## Bitmap, överföringar och labblivscykel i 0.7
+
+Cachegiltigheten har en bit per block och en räknare. Bitmapen frigörs när
+cachen stängs av; inget lika stort tillfälligt nollningsobjekt skapas. En
+valfri `transfer_bytes` slår ihop intilliggande block med samma datakälla.
+Partiella kantblock läses från lokal kopia; fullt täckta skrivblock kan
+speglas direkt från redan lokalt skrivna anropsdata. Cachebitar sätts först
+efter lyckad fjärrskrivning. Senare batchfel överger hela cachen.
+
+`memory_budget.py` sänker RLIMIT_AS enbart i en disponibel benchmarkprocess.
+Gränsen ärvs av NBD-barnprocessen och befintliga strängare gränser höjs aldrig.
+Virtuell adressrymd per process är inte fysisk RAM, cgroup-gräns eller
+systemfilcache. Dessa mätningar bevisar därför inte nytta under systemtryck.
+
+`lab.py` skapar privata kortlivade autentiseringsuppgifter och en loopback-givare,
+kör jämförelsen och städar före lyckad rapport. Benchmarkens processgrupp
+dödas vid timeout eller avbrott. NBD-biblioteket städar även vid Ctrl+C under
+anslutning eller I/O; delvis skrivna lokala data spärras vid avbrott.

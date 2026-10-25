@@ -239,3 +239,104 @@ class ConfigTests(unittest.TestCase):
             path.write_text('[memory]\nmax_sesions = 2\n')
             with self.assertRaises(ValueError):
                 load_limits(path)
+
+
+class CancellationTests(unittest.TestCase):
+    def make_pool(self):
+        stores = []
+
+        def factory(size):
+            storage = SimulatedMemory(size)
+            stores.append(storage)
+            return storage
+
+        pool = MemoryPool(Limits(16384, 16384, 4, 4096), factory)
+
+        def cleanup():
+            try:
+                pool.close()
+            except BackendError:
+                pass
+
+        self.addCleanup(cleanup)
+        return pool, stores
+
+    def test_interrupted_partial_write_revokes_capability(self):
+        for cancellation in (KeyboardInterrupt(), SystemExit(7)):
+            with self.subTest(cancellation=type(cancellation)):
+                pool, stores = self.make_pool()
+                token = pool.allocate("a", 4096)
+
+                def interrupted(offset, data):
+                    stores[0].data[offset] = data[0]
+                    raise cancellation
+
+                stores[0].write = interrupted
+                with self.assertRaises(type(cancellation)) as raised:
+                    pool.write(token, 0, b"changed")
+                self.assertIs(raised.exception, cancellation)
+                self.assertTrue(stores[0].closed)
+                self.assertEqual(pool.snapshot()["allocated_bytes"], 0)
+                with self.assertRaises(SessionError):
+                    pool.read(token, 0, 1)
+
+    def test_interrupted_read_revokes_capability(self):
+        for cancellation in (KeyboardInterrupt(), SystemExit(7)):
+            pool, stores = self.make_pool()
+            token = pool.allocate("a", 4096)
+            with patch.object(stores[0], "read", side_effect=cancellation):
+                with self.assertRaises(type(cancellation)) as raised:
+                    pool.read(token, 0, 1)
+            self.assertIs(raised.exception, cancellation)
+            self.assertTrue(stores[0].closed)
+            with self.assertRaises(SessionError):
+                pool.read(token, 0, 1)
+
+    def test_interrupted_cleanup_quarantines_capacity_and_revokes(self):
+        for cancellation in (KeyboardInterrupt(), SystemExit(7)):
+            pool, stores = self.make_pool()
+            token = pool.allocate("a", 4096)
+            with patch.object(stores[0], "close", side_effect=cancellation):
+                with self.assertRaises(type(cancellation)) as raised:
+                    pool.release(token)
+            self.assertIs(raised.exception, cancellation)
+            self.assertEqual(pool.snapshot()["allocated_bytes"], 4096)
+            self.assertEqual(pool.snapshot()["quarantined_sessions"], 1)
+            self.assertEqual(pool.snapshot()["sessions"], 0)
+            with self.assertRaises(SessionError):
+                pool.read(token, 0, 1)
+
+    def test_original_io_cancellation_survives_cleanup_failure(self):
+        for cleanup_failure in (OSError("failed"), SystemExit(9)):
+            pool, stores = self.make_pool()
+            token = pool.allocate("a", 4096)
+            cancellation = KeyboardInterrupt()
+            with patch.object(stores[0], "write", side_effect=cancellation), \
+                    patch.object(stores[0], "close", side_effect=cleanup_failure):
+                with self.assertRaises(KeyboardInterrupt) as raised:
+                    pool.write(token, 0, b"x")
+            self.assertIs(raised.exception, cancellation)
+            self.assertEqual(pool.snapshot()["quarantined_sessions"], 1)
+            self.assertEqual(pool.snapshot()["allocated_bytes"], 4096)
+
+    def test_shutdown_attempts_all_cleanup_preserving_first_cancellation(self):
+        pool, stores = self.make_pool()
+        tokens = [pool.allocate("a", 4096) for _ in range(3)]
+        cancellation = KeyboardInterrupt()
+        with patch.object(stores[0], "close", side_effect=cancellation) as first, \
+                patch.object(stores[1], "close", side_effect=SystemExit(9)) as second:
+            with self.assertRaises(KeyboardInterrupt) as raised:
+                pool.close()
+        self.assertIs(raised.exception, cancellation)
+        first.assert_called_once_with()
+        second.assert_called_once_with()
+        self.assertTrue(stores[2].closed)
+        self.assertEqual(pool.snapshot()["quarantined_sessions"], 2)
+        self.assertEqual(pool.snapshot()["allocated_bytes"], 8192)
+        self.assertEqual(pool.snapshot()["sessions"], 0)
+        self.assertTrue(pool.snapshot()["closed"])
+        for token in tokens:
+            with self.assertRaises(SessionError):
+                pool.read(token, 0, 1)
+        with self.assertRaises(BackendError):
+            pool.close()

@@ -1,3 +1,12 @@
+## 0.7.0
+
+- Replace per-block Python sets with one-bit validity maps.
+- Batch adjacent cached reads and mirrored writes; avoid redundant local readback for complete writes.
+- Add configurable 4 KiB–1 MiB verified workloads and optional per-process RLIMIT_AS limits.
+- Add a one-command loopback lab with temporary credentials and bounded lifecycle cleanup.
+- Clean up interrupted NBD calls and invalidate uncertain local writes on cancellation.
+- Launch NBD workers from the package directory so scripts also work outside the checkout.
+
 ## 0.6.0
 
 - Add repeatable local-file versus TLS/NBD cache comparison in isolated processes.

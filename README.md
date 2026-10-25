@@ -1,4 +1,23 @@
-# Memory Bridge — ramverk 0.6.0
+# Memory Bridge — ramverk 0.7.0
+
+## Hela labbet med ett kommando
+
+På en Linux-testdator med systempaketen installerade:
+
+```bash
+/usr/bin/python3 lab.py --operations 256 --request-kib 64 --memory-limit-mib 128
+```
+
+Kommandot skapar en tillfällig nyckel, startar en givare på loopback, jämför
+lokal fil med TLS/NBD och städar givaren, klienterna och nyckeln. Ingen NAS,
+swapaktivering eller brandväggsändring behövs. Om beroenden saknas:
+
+```bash
+sudo apt-get install nbdkit nbdkit-plugin-python python3-libnbd
+```
+
+Själva labbet körs som vanlig användare. Börja med standardstorleken 1 MiB.
+Läs [körguiden](docs/KORGUIDE.md) för test på två datorer och resultatens gränser.
 
 ## Utveckla utan NAS
 
@@ -34,7 +53,7 @@ Paketet kan även installeras med `python3 -m pip install .`; då finns kommando
 projektmappen enligt instruktionerna nedan och installeras inte som CLI.
 
 Läs [arkitekturen](docs/ARKITEKTUR.md) för tillstånd, säkerhetsgränser och vad
-som återstår. Alla 93 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40186254875), inklusive NBD/TLS på loopback.
+som återstår. Version 0.6.0: alla 93 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40186254875), inklusive NBD/TLS på loopback.
 
 Arbetsnamn, inte kontrollerat varumärke. En första byggsten för att låna RAM
 från en annan Linux-dator på ett betrott hemnätverk.
@@ -228,3 +247,16 @@ Första CI-provet (1 MiB, 16 operationer per fas, loopback och varm cache) gav
 långsammare fjärrläge. Detta lilla funktionstest visar ingen prestandavinst.
 Rådata och exakta förutsättningar finns i
 [benchmark-ci-0.6.0.json](docs/benchmark-ci-0.6.0.json).
+
+## Mindre metadata och större anrop i 0.7.0
+
+Cachegiltighet använder nu en bitmap: en bit per 4 KiB-block, vilket motsvarar
+32 KiB för 1 GiB lagringsutrymme (utöver objekt- och processoverhead).
+`valid_bitmap_bytes` i rapporten visar bitmapens faktiska storlek.
+
+`--request-kib 64` samlar sammanhängande block i större överföringar. Värdet
+måste vara en tvåpotens mellan 4 och 1024 och används lika för båda lägena.
+`--memory-limit-mib 128` begränsar varje klientprocess med RLIMIT_AS. Det gäller
+virtuell adressrymd per process, inte sammanlagd RAM-användning, givaren eller
+systemfilcache. Alltför låg gräns avbryter experimentet. Detta ersätter inte
+ett test av hela systemets minnestryck i en VM eller delegerad cgroup.

@@ -40,7 +40,8 @@ class ComparisonTests(unittest.TestCase):
 
     def test_deadline_kills_entire_experiment_process_group(self):
         args = SimpleNamespace(size_mib=1, operations=8, seed=42, host='localhost',
-                               port=10809, io_timeout=2, key=None, directory=None, run_timeout=1)
+                               port=10809, io_timeout=2, key=None, directory=None, run_timeout=1,
+                               request_kib=4, memory_limit_mib=None)
         process = Mock(pid=12345)
         process.communicate.side_effect = [subprocess.TimeoutExpired('experiment', 1), ('', '')]
         with patch.object(compare_benchmark.subprocess, 'Popen', return_value=process) as spawn, \
@@ -54,7 +55,8 @@ class ComparisonTests(unittest.TestCase):
     def test_failed_cache_is_never_reported_as_remote_performance(self):
         args = SimpleNamespace(size_mib=1, worker_mode='remote', key=Path('/key'),
                                directory=None, host='localhost', port=10809,
-                               io_timeout=2, operations=8, seed=42)
+                               io_timeout=2, operations=8, seed=42,
+                               request_kib=4, memory_limit_mib=None)
         with patch.object(compare_benchmark, 'private_key'), \
                 patch.object(compare_benchmark, 'TemporaryFileStorage'), \
                 patch.object(compare_benchmark, 'RemoteNBDStorage'), \

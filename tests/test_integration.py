@@ -172,3 +172,18 @@ class NetworkTests(unittest.TestCase):
         self.assertGreater(report['duration_ratios']['read_remote_over_local'], 0)
         # No performance threshold: CI proves correctness, not a speed benefit.
         print('COMPARISON_RESULT=' + json.dumps(report), flush=True)
+
+    def test_batched_comparison_under_address_limit(self):
+        import json
+        result = subprocess.run([sys.executable, 'compare_benchmark.py', '--key', str(self.key),
+                                 '--port', str(self.port), '--operations', '16',
+                                 '--request-kib', '64', '--memory-limit-mib', '128'],
+                                capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        remote = report['results'][1]
+        self.assertEqual(remote['page_size'], 65536)
+        self.assertEqual(remote['address_space_limit_bytes_per_process'], 128 * 1024 * 1024)
+        self.assertEqual(remote['cache']['valid_bitmap_bytes'], 32)
+        self.assertTrue(remote['cache']['remote_enabled'])
+        print('BATCHED_COMPARISON_RESULT=' + json.dumps(report), flush=True)

@@ -1,6 +1,7 @@
 """Authoritative local backing and best-effort cache failure invariants."""
 
 import unittest
+import random
 
 from memory_bridge.core import BackendError
 from memory_bridge.resilient import ResilientStorage
@@ -150,3 +151,173 @@ class ResilientTests(unittest.TestCase):
             ResilientStorage(self.local, RecordingMemory(4096))
         self.assertEqual(self.local.calls, [])
         self.assertEqual(self.remote.calls, [])
+
+
+class BatchedResilientTests(unittest.TestCase):
+    def make_storage(self, blocks=16, transfer=8192, maximum=16384, remote=True):
+        local = RecordingMemory(blocks * 4096)
+        donor = RecordingMemory(blocks * 4096) if remote else None
+        storage = ResilientStorage(local, donor, max_request_bytes=maximum,
+                                   transfer_bytes=transfer)
+        self.addCleanup(storage.close)
+        return storage, local, donor
+
+    def test_bitmap_byte_boundary_and_overwrite_counts(self):
+        storage, local, remote = self.make_storage(blocks=17)
+        self.assertEqual(storage.snapshot()["valid_bitmap_bytes"], 3)
+        for page in (0, 7, 8, 15, 16):
+            storage.write(page * 4096, b"x")
+        self.assertEqual(storage.snapshot()["cached_blocks"], 5)
+        for page in (7, 8):
+            storage.write(page * 4096 + 2, b"y")
+        self.assertEqual(storage.snapshot()["cached_blocks"], 5)
+        self.assertEqual(storage.read(7 * 4096, 8192), bytes(local.data[7 * 4096:9 * 4096]))
+        storage.close()
+        self.assertEqual(storage.snapshot()["valid_bitmap_bytes"], 0)
+
+    def test_no_bitmap_without_remote(self):
+        storage, _, _ = self.make_storage(remote=False)
+        storage.write(0, b"x")
+        self.assertEqual(storage.snapshot()["valid_bitmap_bytes"], 0)
+        self.assertEqual(storage.snapshot()["cached_blocks"], 0)
+
+    def test_batched_calls_and_aligned_write_avoid_local_readback(self):
+        storage, local, remote = self.make_storage()
+        data = b"a" * 16384
+        storage.write(0, data)
+        self.assertEqual(local.calls, [("write", 0, 16384)])
+        self.assertEqual(remote.calls, [("write", 0, 8192), ("write", 8192, 8192)])
+        remote.calls.clear()
+        self.assertEqual(storage.read(0, 16384), data)
+        self.assertEqual(remote.calls, [("read", 0, 8192), ("read", 8192, 8192)])
+
+    def test_mixed_cache_sources_and_partial_edges(self):
+        storage, local, remote = self.make_storage(transfer=16384)
+        local.data[:] = b"l" * local.size
+        remote.data[:] = b"stale!!!" * (remote.size // 8)
+        storage.write(4096, b"m" * 8192)
+        local.calls.clear()
+        remote.calls.clear()
+        self.assertEqual(storage.read(4095, 8194), b"l" + b"m" * 8192 + b"l")
+        self.assertEqual(local.calls, [("read", 4095, 1), ("read", 12288, 1)])
+        self.assertEqual(remote.calls, [("read", 4096, 8192)])
+
+    def test_partial_maximum_write_splits_full_block_mirrors(self):
+        storage, local, remote = self.make_storage(maximum=8192)
+        storage.write(1, b"a" * 8192)
+        self.assertEqual(remote.calls, [("write", 0, 8192), ("write", 8192, 4096)])
+        self.assertTrue(all(call[2] <= 8192 for call in local.calls + remote.calls))
+        self.assertEqual(remote.data[:12288], local.data[:12288])
+        self.assertEqual(storage.snapshot()["cached_blocks"], 3)
+
+    def test_late_mirror_failure_discards_all_validity(self):
+        storage, local, remote = self.make_storage()
+        original = remote.write
+        calls = 0
+
+        def fail_second(offset, data):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                remote.data[offset] = 255
+                raise OSError("partial remote write")
+            original(offset, data)
+
+        remote.write = fail_second
+        expected = b"new!" * 4096
+        storage.write(0, expected)
+        self.assertEqual(storage.read(0, 16384), expected)
+        self.assertFalse(storage.snapshot()["remote_enabled"])
+        self.assertEqual(storage.snapshot()["cached_blocks"], 0)
+        self.assertEqual(storage.snapshot()["valid_bitmap_bytes"], 0)
+
+    def test_late_read_failure_falls_back_for_current_and_remaining_batches(self):
+        storage, local, remote = self.make_storage()
+        expected = b"new!" * 4096
+        storage.write(0, expected)
+        original = remote.read
+        calls = 0
+
+        def fail_second(offset, count):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("remote failed")
+            return original(offset, count)
+
+        remote.read = fail_second
+        local.calls.clear()
+        self.assertEqual(storage.read(0, 16384), expected)
+        self.assertEqual(local.calls, [("read", 8192, 8192)])
+        storage.write(0, b"z" * 16384)
+        self.assertEqual(storage.read(0, 16384), b"z" * 16384)
+        self.assertEqual(calls, 2)
+
+    def test_transfer_validation_precedes_io(self):
+        local, remote = RecordingMemory(), RecordingMemory()
+        for transfer in (True, 0, -4096, 4097, 12288):
+            with self.subTest(transfer=transfer), self.assertRaises(ValueError):
+                ResilientStorage(local, remote, max_request_bytes=8192,
+                                 transfer_bytes=transfer)
+        self.assertEqual(local.calls + remote.calls, [])
+
+    def test_randomized_mixed_sources_match_reference_through_remote_loss(self):
+        for transfer in (4096, 8192, 16384):
+            with self.subTest(transfer=transfer):
+                storage, local, remote = self.make_storage(blocks=17, transfer=transfer)
+                rng = random.Random(8392)
+                reference = bytearray(local.size)
+                remote.data[:] = b"s" * remote.size
+                # Scatter initial validity across multiple bitmap bytes;
+                # untouched blocks must still be read from local zeros.
+                for page in (0, 3, 7, 8, 12, 16):
+                    payload = rng.randbytes(4096)
+                    storage.write(page * 4096, payload)
+                    reference[page * 4096:(page + 1) * 4096] = payload
+                for operation in range(300):
+                    if operation == 100:
+                        remote.fail_reads = remote.fail_writes = True
+                    count = rng.randint(1, 16384)
+                    offset = rng.randint(0, len(reference) - count)
+                    if rng.randrange(2):
+                        payload = rng.randbytes(count)
+                        storage.write(offset, payload)
+                        reference[offset:offset + count] = payload
+                    else:
+                        self.assertEqual(storage.read(offset, count),
+                                         bytes(reference[offset:offset + count]))
+                self.assertFalse(storage.snapshot()["remote_enabled"])
+                self.assertEqual(storage.snapshot()["valid_bitmap_bytes"], 0)
+                self.assertEqual(local.data, reference)
+                # Check all bytes after loss, not only the sampled ranges.
+                for start in range(0, len(reference), 16384):
+                    count = min(16384, len(reference) - start)
+                    self.assertEqual(storage.read(start, count), bytes(reference[start:start + count]))
+
+class CancellationTests(unittest.TestCase):
+    def test_interrupted_partial_local_write_is_terminal(self):
+        local, remote = RecordingMemory(), RecordingMemory()
+        with ResilientStorage(local, remote) as storage:
+            storage.write(0, b'old')
+
+            def interrupt(offset, data):
+                local.data[offset] = data[0]
+                raise KeyboardInterrupt
+
+            local.write = interrupt
+            with self.assertRaises(KeyboardInterrupt):
+                storage.write(0, b'new')
+            with self.assertRaises(BackendError):
+                storage.read(0, 3)
+            self.assertEqual(storage.snapshot()['cached_blocks'], 0)
+
+    def test_interrupted_remote_write_disables_cache_but_keeps_local_data(self):
+        local, remote = RecordingMemory(), RecordingMemory()
+        with ResilientStorage(local, remote) as storage:
+            def interrupt(*_):
+                raise KeyboardInterrupt
+            remote.write = interrupt
+            with self.assertRaises(KeyboardInterrupt):
+                storage.write(0, b'saved')
+            self.assertFalse(storage.snapshot()['remote_enabled'])
+            self.assertEqual(storage.read(0, 5), b'saved')
