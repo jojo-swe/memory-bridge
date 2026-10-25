@@ -1,4 +1,4 @@
-# Arkitektur och kontrakt — 0.7
+# Arkitektur och kontrakt — 0.8
 
 ## Moduler
 
@@ -139,3 +139,21 @@ systemfilcache. Dessa mätningar bevisar därför inte nytta under systemtryck.
 kör jämförelsen och städar före lyckad rapport. Benchmarkens processgrupp
 dödas vid timeout eller avbrott. NBD-biblioteket städar även vid Ctrl+C under
 anslutning eller I/O; delvis skrivna lokala data spärras vid avbrott.
+
+## Beständig sidlagring i 0.8
+
+`persistent.py` implementerar Storage via SQLite. Saknade sidor är nollor;
+logisk storlek och formatversion sparas separat. En hel skrivbegäran är en
+transaktion. Rollback sker även vid cancellation. DELETE-journal, EXTRA-sync,
+avstängd mmap och begränsad sidcache kontrolleras efter konfigurering.
+
+En separat låst descriptor hindrar samtidiga samarbetsvilliga öppnare.
+SQLite öppnar ändå filer via sökväg: katalog och sökvägsstabilitet är en
+förtroendegräns. Om SQLite-close misslyckas behålls ägarlåset tills städningen
+kan slutföras. Databasen och eventuell journal raderas aldrig automatiskt.
+Efter omstart betraktas all fjärrcache som ogiltig.
+
+Backendens transaktionsgarantier bygger på SQLite och lagringens
+synkroniseringsgarantier. Tester simulerar processkrasch, inte diskhaveri.
+Se https://www.sqlite.org/atomiccommit.html och
+https://www.sqlite.org/pragma.html#pragma_synchronous.
