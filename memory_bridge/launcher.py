@@ -75,9 +75,13 @@ def main():
     # Reject a known impossible locked-memory budget before reading the key or
     # starting nbdkit. This is a necessary check, not a promise of free RAM;
     # the backend's mandatory mlock remains authoritative at allocation time.
+    # CAP_IPC_LOCK exempts a process from RLIMIT_MEMLOCK (e.g. a non-root
+    # donor started with only that ambient capability).
     import resource
+    from memory_bridge.memlock import has_cap_ipc_lock
     soft_limit, _ = resource.getrlimit(resource.RLIMIT_MEMLOCK)
-    if soft_limit != resource.RLIM_INFINITY and args.size_mib * 1024 * 1024 > soft_limit:
+    if (soft_limit != resource.RLIM_INFINITY and not has_cap_ipc_lock()
+            and args.size_mib * 1024 * 1024 > soft_limit):
         parser.error("Export exceeds current memlock limit; reduce size or configure the OS limit")
     key = private_key(args.key)
     executable = shutil.which("nbdkit")

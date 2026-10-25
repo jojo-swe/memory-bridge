@@ -40,7 +40,16 @@ def serve(sock):
             raise ValueError("Invalid maximum")
         if type(size) is not int or size <= 0 or size % 4096:
             raise ValueError("Invalid size")
+        lock_memory = config.get("lock_memory", False)
+        if type(lock_memory) is not bool:
+            raise ValueError("Invalid lock_memory")
         import nbd
+        if lock_memory:
+            # Serving swap: keep this worker resident before any connection
+            # exists. Failure aborts the handshake instead of running unlocked.
+            from .memlock import lock_all_memory, set_io_flusher
+            lock_all_memory()
+            set_io_flusher()
         handle = nbd.NBD()
         handle.set_tls(nbd.TLS_REQUIRE)
         handle.set_tls_username("borrower")

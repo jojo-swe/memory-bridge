@@ -23,10 +23,21 @@ class LauncherTests(unittest.TestCase):
     def test_memlock_failure_precedes_key_access(self):
         with patch("sys.argv", ["bridge.py", "donor", "--key", "unused", "--size-mib", "1"]), \
              patch("resource.getrlimit", return_value=(4096, 4096)), \
+             patch("memory_bridge.memlock.has_cap_ipc_lock", return_value=False), \
              patch("bridge.private_key") as key, redirect_stderr(io.StringIO()):
             with self.assertRaises(SystemExit):
                 main()
             key.assert_not_called()
+
+    def test_cap_ipc_lock_exempts_memlock_precheck(self):
+        # Linux does not apply RLIMIT_MEMLOCK to CAP_IPC_LOCK holders; the
+        # precheck must not reject them before the real mlock decides.
+        with patch("sys.argv", ["bridge.py", "donor", "--key", "unused", "--size-mib", "1"]), \
+             patch("resource.getrlimit", return_value=(4096, 4096)), \
+             patch("memory_bridge.memlock.has_cap_ipc_lock", return_value=True), \
+             patch("bridge.private_key", side_effect=ValueError("reached key check")):
+            with self.assertRaisesRegex(ValueError, "reached key check"):
+                main()
 
     def test_invalid_nbd_config_precedes_key_access(self):
         with tempfile.TemporaryDirectory() as directory:
