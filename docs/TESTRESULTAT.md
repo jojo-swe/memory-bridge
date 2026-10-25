@@ -1,3 +1,20 @@
+## 0.5.0 – verklig nätverksåterhämtning
+
+[Run 40185556989](https://github.com/jojo-swe/memory-bridge/actions/runs/40185556989):
+**80 godkända tester, inga överhoppade**, commit
+`1d0b8f0bc1dc4d2ed45a62c10a5b1fcade931bb9`.
+
+Återhämtningslagret klarade både SIGKILL och SIGSTOP av riktig nbdkit-givare
+med TLS på loopback. Data kunde läsas från den lokala filkopian inom testets
+3-sekundersgräns och därefter skrivas igen. Hälsosam fjärrläsning verifierades
+före avbrottet för att lokal fallback inte skulle maskera transportfel.
+Fel nyckel och exportstorlek avvisades. Sju transportenhetstester täcker
+bland annat fragmenterade svar, timeout, protokollfel och processavslut.
+
+Lokalt: 72 godkända, åtta NBD-tester överhoppade på grund av saknade
+systemberoenden. Paketbygge av 0.5.0 lyckades. Fysiskt LAN, minnestryck,
+prestandavinst och system-swap är fortfarande inte verifierade.
+
 ## 0.4.0 – CI verifierad
 
 [Run 40184413461](https://github.com/jojo-swe/memory-bridge/actions/runs/40184413461):
