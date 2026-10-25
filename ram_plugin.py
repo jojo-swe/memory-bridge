@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from memory_bridge.storage import LockedMemory
 from memory_bridge.core import Limits, MemoryPool
+from memory_bridge.config import load_limits
 
 API_VERSION = 2
 
@@ -38,6 +39,7 @@ class SingleSession:
 _size = 4 * 1024 * 1024
 _session = None
 _pool = None
+_config_file = None
 
 
 class PoolHandle:
@@ -63,9 +65,12 @@ class PoolHandle:
 
 
 def config(key, value):
-    global _size
+    global _size, _config_file
+    if key == "config_file":
+        _config_file = value
+        return
     if key != "size_mib":
-        raise ValueError("Only size_mib is supported")
+        raise ValueError("Only size_mib and config_file are supported")
     amount = int(value)
     if not 1 <= amount <= 65536:
         raise ValueError("size_mib must be between 1 and 65536")
@@ -74,7 +79,13 @@ def config(key, value):
 
 def config_complete():
     global _session, _pool
-    _pool = MemoryPool(Limits(_size, _size, 1, 1024 * 1024), LockedMemory)
+    limits = load_limits(_config_file) if _config_file else Limits(_size, _size, 1, 1024 * 1024)
+    # NBD requires a power-of-two maximum block size; keep the transport's
+    # advertised limit compatible with the core before allocating locked RAM.
+    maximum = limits.max_request_bytes
+    if maximum < 4096 or maximum > 32 * 1024 * 1024 or maximum & (maximum - 1):
+        raise ValueError("NBD max_request_bytes must be a power of two from 4096 to 33554432")
+    _pool = MemoryPool(limits, LockedMemory)
     _session = SingleSession(PoolHandle(_pool, _size))
 
 
@@ -94,7 +105,7 @@ def can_multi_conn(handle):
 
 def block_size(handle):
     # Bound per-request copies as well as the long-lived data allocation.
-    return (1, 4096, 1024 * 1024)
+    return (1, 4096, handle.pool.limits.max_request_bytes)
 
 
 def can_write(handle):

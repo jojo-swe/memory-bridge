@@ -1,4 +1,4 @@
-# Memory Bridge — ramverk 0.2.1
+# Memory Bridge — ramverk 0.3.0
 
 ## Utveckla utan NAS
 
@@ -21,8 +21,10 @@ python3 -m unittest discover -s tests -v
 
 Kärnan stöder flera isolerade allokeringar med totalbudget, ägarkvot och
 sessionsgräns. NBD-adaptern använder samma kärna men erbjuder fortfarande
-**en enda låntagare per serverstart**. TOML-filen gäller kärnans API; den
-gamla donor-startaren använder fortsatt sina CLI-flaggor, inte TOML-filen.
+**en enda låntagare per serverstart**. TOML-filen används även av givaren med `--config config/local.toml`.
+Utan explicit `--size-mib` väljs högst 4 MiB inom ägarkvoten.
+Kärnans `drain()` stoppar nya allokeringar men bevarar aktiva sessioner;
+det är ännu inget fjärrkommando.
 
 Paketet kan även installeras med `python3 -m pip install .`; då finns kommandot
 `memory-bridge` för demo, doctor och validate-config. NBD-skripten körs från

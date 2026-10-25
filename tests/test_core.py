@@ -158,6 +158,25 @@ class PoolTests(unittest.TestCase):
             with self.subTest(size=size), self.assertRaises(ValueError):
                 self.pool.allocate("a", size)
 
+    def test_drain_preserves_existing_data_and_rejects_new_allocations(self):
+        token = self.pool.allocate("a", 4096)
+        self.pool.write(token, 0, b"safe")
+        self.pool.drain()
+        self.pool.drain()  # Repeated drain requests do not discard data.
+        with self.assertRaises(SessionError):
+            self.pool.allocate("b", 4096)
+        self.assertEqual(self.pool.read(token, 0, 4), b"safe")
+        self.pool.write(token, 0, b"live")
+        self.assertEqual(self.pool.read(token, 0, 4), b"live")
+        self.pool.release(token)
+        self.assertEqual(self.pool.snapshot()["allocated_bytes"], 0)
+        self.assertTrue(self.pool.snapshot()["draining"])
+
+    def test_closed_pool_cannot_be_drained_or_reopened(self):
+        self.pool.close()
+        with self.assertRaises(SessionError):
+            self.pool.drain()
+
     def test_mutated_backend_size_cannot_bypass_quota(self):
         self.pool.allocate("a", 8192)
         self.stores[0].size = 0

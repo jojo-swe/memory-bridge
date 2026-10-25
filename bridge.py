@@ -7,6 +7,7 @@ from pathlib import Path
 import secrets
 import shutil
 import stat
+from memory_bridge.config import load_limits
 
 
 def private_key(path):
@@ -43,7 +44,8 @@ def main():
     donor.add_argument("--key", type=Path, required=True)
     donor.add_argument("--bind", default="127.0.0.1", help="Explicit LAN address for two-machine tests")
     donor.add_argument("--port", type=int, default=10809)
-    donor.add_argument("--size-mib", type=int, default=4)
+    donor.add_argument("--size-mib", type=int, default=None)
+    donor.add_argument("--config", type=Path, help="TOML memory budgets enforced by the donor")
     args = parser.parse_args()
     if args.action == "keygen":
         # Exclusive create prevents accidental replacement of an active key.
@@ -52,6 +54,14 @@ def main():
             output.write("borrower:" + secrets.token_hex(32) + "\n")
         print("Private key created. Transfer securely to the borrower; do not commit it.")
         return
+    # Resolve configuration before launching nbdkit. With a configuration and
+    # no explicit size, use up to 4 MiB within the owner's configured budget.
+    config_path = args.config.resolve(strict=True) if args.config else None
+    limits = load_limits(config_path) if config_path else None
+    if args.size_mib is None:
+        args.size_mib = min(4, limits.per_owner_bytes // (1024 * 1024)) if limits else 4
+    if limits and args.size_mib * 1024 * 1024 > limits.per_owner_bytes:
+        parser.error("Requested export exceeds per-owner memory budget")
     key = private_key(args.key)
     if not 1 <= args.size_mib <= 65536 or not 1 <= args.port <= 65535:
         parser.error("Invalid size or port")
@@ -65,6 +75,8 @@ def main():
                f"--tls-psk={key}", f"--ipaddr={args.bind}",
                f"--port={args.port}", "python", str(plugin),
                f"size_mib={args.size_mib}"]
+    if config_path:
+        command.append(f"config_file={config_path}")
     print(f"Volatile RAM export: {args.size_mib} MiB at {args.bind}:{args.port}", flush=True)
     os.execv(executable, command)
 

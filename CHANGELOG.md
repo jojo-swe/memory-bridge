@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 — 2026-10-25
+
+- Enforce TOML quotas and request limits in the donor and NBD adapter.
+- Validate NBD block limits before allocating memory.
+- Add irreversible core draining: existing data remains accessible while new allocations are rejected.
+- Add adapter, lifecycle and CLI regression tests; exercise config in real NBD tests.
+- Publish contributor guidance.
+
 ## 0.2.1 — 2026-10-25
 
 - Enforce read-only exports at the plugin callback boundary.

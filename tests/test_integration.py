@@ -26,7 +26,8 @@ class NetworkTests(unittest.TestCase):
             self.port = probe.getsockname()[1]
         self.donor = subprocess.Popen([sys.executable, "bridge.py", "donor",
                                        "--key", str(self.key), "--port", str(self.port),
-                                       "--size-mib", "1"], stdout=subprocess.DEVNULL)
+                                       "--size-mib", "1", "--config", "config/local.toml"],
+                                      stdout=subprocess.DEVNULL)
         self.addCleanup(self.stop_donor)
         deadline = time.monotonic() + 5
         while time.monotonic() < deadline:

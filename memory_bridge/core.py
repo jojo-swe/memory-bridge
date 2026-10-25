@@ -79,6 +79,7 @@ class MemoryPool:
         self._quarantine = []
         self._lock = threading.RLock()
         self._closed = False
+        self._draining = False
         self._reads = self._writes = self._errors = 0
 
     def _allocated(self):
@@ -93,6 +94,8 @@ class MemoryPool:
         with self._lock:
             if self._closed:
                 raise SessionError("Pool is closed")
+            if self._draining:
+                raise SessionError("Pool is draining; new allocations are disabled")
             all_sessions = list(self._sessions.values()) + self._quarantine
             owned = sum(s.size for s in all_sessions if s.owner == owner)
             if (self._allocated() + size > self.limits.total_bytes
@@ -177,12 +180,25 @@ class MemoryPool:
     def snapshot(self) -> dict:
         """Aggregate telemetry only: no contents, keys, owners or tokens."""
         with self._lock:
-            return {"closed": self._closed, "sessions": len(self._sessions),
+            return {"closed": self._closed, "draining": self._draining,
+                    "sessions": len(self._sessions),
                     "allocated_bytes": self._allocated(),
                     "capacity_bytes": self.limits.total_bytes,
                     "quarantined_sessions": len(self._quarantine),
                     "read_bytes": self._reads, "written_bytes": self._writes,
                     "errors": self._errors}
+
+    def drain(self) -> None:
+        """Stop admission without deleting live data or waiting indefinitely.
+
+        Existing capabilities continue to work until explicitly released.
+        Draining is irreversible. The caller observes snapshot() and chooses
+        when to close; this method never silently discards an allocation.
+        """
+        with self._lock:
+            if self._closed:
+                raise SessionError("Pool is closed")
+            self._draining = True
 
     def close(self) -> None:
         with self._lock:

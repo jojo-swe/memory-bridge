@@ -1,4 +1,4 @@
-# Arkitektur och kontrakt — 0.2
+# Arkitektur och kontrakt — 0.3
 
 ## Moduler
 
@@ -7,7 +7,7 @@
 | memory_bridge/core.py | Kvoter, sessioner, I/O-gränser, statistik, avveckling |
 | memory_bridge/storage.py | Linux mmap + obligatorisk mlock, rensning och frigöring |
 | memory_bridge/simulation.py | Lokal testbackend och injicerade fel |
-| memory_bridge/config.py | Strikt TOML till validerade Limits |
+| memory_bridge/config.py | Strikt TOML till validerade Limits, även för donor-startaren |
 | memory_bridge/__main__.py | Demo, miljödiagnostik, konfigurationsvalidering |
 | ram_plugin.py | nbdkit-adapter över kärnan, en session per process |
 | bridge.py | Nyckelgenerering och start med obligatorisk TLS-PSK |
@@ -68,3 +68,10 @@ en separat, testad strategi för redundans eller lokal skrivgenomgående kopia.
 Nivåerna är separata. En grön lokal demo bevisar inte fungerande TLS eller
 prestandaförbättring. GitHub-workflow kräver NBD-beroenden innan testen startar;
 projektmappens innehåll ska vara repots rot om workflow-filen används.
+
+## Dränering i 0.3
+
+`MemoryPool.drain()` stoppar nya allokeringar atomärt. Befintliga sessioner
+kan fortsätta läsa, skriva och frigöras. Läget kan inte återställas; en stängd
+pool avvisar drain. Operatören måste observera `snapshot()` innan close.
+Detta är ännu inte ett fjärr-API eller automatisk datamigrering.
