@@ -76,6 +76,7 @@ class MemoryPool:
         self.limits = limits
         self._factory = factory
         self._sessions = {}
+        self._generation = 0
         self._quarantine = []
         self._lock = threading.RLock()
         self._closed = False
@@ -105,14 +106,13 @@ class MemoryPool:
             # Allocation is serialized and only committed after successful
             # construction. Factories must clean up if construction fails.
             # Generate before allocating so entropy-source failures cannot
-            # strand locked memory. Never overwrite a live capability on a
-            # collision, even when a faulty token generator is injected.
-            for _ in range(8):
-                token = secrets.token_urlsafe(32)
-                if token not in self._sessions:
-                    break
-            else:
-                raise SessionError("Could not allocate a unique capability")
+            # strand locked memory. A monotonically increasing prefix prevents
+            # retired capabilities from becoming valid again even if entropy
+            # repeats, without retaining unbounded capability tombstones.
+            # The random component retains 256 bits of cross-pool entropy.
+            secret = secrets.token_urlsafe(32)
+            self._generation += 1
+            token = f"{self._generation:x}.{secret}"
             storage = self._factory(size)
             self._sessions[token] = _Session(owner, storage, size)
             return token

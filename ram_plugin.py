@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from memory_bridge.storage import LockedMemory
 from memory_bridge.core import Limits, MemoryPool
-from memory_bridge.config import load_limits
+from memory_bridge.config import load_limits, validate_nbd_limits
 
 API_VERSION = 2
 
@@ -82,9 +82,7 @@ def config_complete():
     limits = load_limits(_config_file) if _config_file else Limits(_size, _size, 1, 1024 * 1024)
     # NBD requires a power-of-two maximum block size; keep the transport's
     # advertised limit compatible with the core before allocating locked RAM.
-    maximum = limits.max_request_bytes
-    if maximum < 4096 or maximum > 32 * 1024 * 1024 or maximum & (maximum - 1):
-        raise ValueError("NBD max_request_bytes must be a power of two from 4096 to 33554432")
+    validate_nbd_limits(limits)
     _pool = MemoryPool(limits, LockedMemory)
     _session = SingleSession(PoolHandle(_pool, _size))
 

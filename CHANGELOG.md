@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1 — 2026-10-25
+
+- Prevent retired capability reuse with a generation prefix, without retaining token history.
+- Check memlock and NBD limits before opening the key or starting the donor.
+- Generate key entropy before creating the output file.
+- Add a strict test runner: CI fails on skipped tests.
+- Disable persisted checkout credentials in CI.
+
+
 ## 0.3.0 — 2026-10-25
 
 - Enforce TOML quotas and request limits in the donor and NBD adapter.

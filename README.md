@@ -1,4 +1,4 @@
-# Memory Bridge — ramverk 0.3.0
+# Memory Bridge — ramverk 0.3.1
 
 ## Utveckla utan NAS
 
@@ -132,3 +132,11 @@ Verifieringsstatus finns i [testrapporten](docs/TESTRESULTAT.md).
 
 Den här prototypen använder standardverktyg och ett nytt Python-lager. Den
 implementerar inte Infiniswap och påstår ingen prestandaparitet med RDMA.
+
+## Strikt verifiering och startkontroller
+
+`python3 run_tests.py` fungerar även om skriptet anropas från en annan mapp.
+CI kör `python3 run_tests.py --require-integration` och misslyckas om något
+test hoppas över. Givaren kontrollerar NBD-blockstorlek och aktuell
+memlock-gräns innan nyckelfilen läses; mlock vid allokering är fortsatt
+den slutliga kontrollen. Sessions-token är opaka och får inte tolkas av klienter.

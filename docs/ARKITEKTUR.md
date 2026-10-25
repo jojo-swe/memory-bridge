@@ -75,3 +75,12 @@ projektmappens innehåll ska vara repots rot om workflow-filen används.
 kan fortsätta läsa, skriva och frigöras. Läget kan inte återställas; en stängd
 pool avvisar drain. Operatören måste observera `snapshot()` innan close.
 Detta är ännu inte ett fjärr-API eller automatisk datamigrering.
+
+## Token och startkontroller i 0.3.1
+
+Token består av generationsnummer och en 256-bitars slumpkomponent.
+Generationsnumret förhindrar återanvändning inom samma pool även vid
+upprepad slumpdata, utan att spara avslutade token. Mellan pooler förlitar
+sig unikheten på slumpgeneratorn. Token får inte parsas av anroparen.
+Startkontroll av memlock anger endast om begäran ryms inom OS-gränsen;
+den garanterar inte ledigt RAM. Själva mlock måste fortfarande lyckas.

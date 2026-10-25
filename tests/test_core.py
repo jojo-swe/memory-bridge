@@ -190,14 +190,37 @@ class PoolTests(unittest.TestCase):
                 self.pool.allocate("a", 4096)
         self.assertEqual(len(self.stores), 0)
 
-    def test_token_collision_cannot_overwrite_live_session(self):
+    def test_repeated_entropy_cannot_overwrite_live_session(self):
         with patch("memory_bridge.core.secrets.token_urlsafe", return_value="fixed"):
             first = self.pool.allocate("a", 4096)
             self.pool.write(first, 0, b"original")
-            with self.assertRaises(SessionError):
-                self.pool.allocate("b", 4096)
-        self.assertEqual(len(self.stores), 1)
+            second = self.pool.allocate("b", 4096)
+        self.assertNotEqual(first, second)
+        self.assertEqual(len(self.stores), 2)
         self.assertEqual(self.pool.read(first, 0, 8), b"original")
+        self.assertEqual(self.pool.read(second, 0, 8), bytes(8))
+
+    def test_released_capability_cannot_be_reissued(self):
+        with patch("memory_bridge.core.secrets.token_urlsafe", return_value="fixed"):
+            token = self.pool.allocate("a", 4096)
+            self.pool.release(token)
+            replacement = self.pool.allocate("b", 4096)
+        self.assertNotEqual(token, replacement)
+        with self.assertRaises(SessionError):
+            self.pool.read(token, 0, 1)
+        self.assertEqual(self.pool.read(replacement, 0, 1), b"\0")
+
+    def test_quarantined_capability_cannot_be_reissued(self):
+        with patch("memory_bridge.core.secrets.token_urlsafe", return_value="fixed"):
+            token = self.pool.allocate("a", 4096)
+            self.stores[0].fail_close = True
+            with self.assertRaises(BackendError):
+                self.pool.release(token)
+            replacement = self.pool.allocate("b", 4096)
+        self.assertNotEqual(token, replacement)
+        with self.assertRaises(SessionError):
+            self.pool.write(token, 0, b"x")
+        self.assertEqual(self.pool.read(replacement, 0, 1), b"\0")
 
 
 class ConfigTests(unittest.TestCase):

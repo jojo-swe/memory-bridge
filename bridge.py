@@ -7,7 +7,7 @@ from pathlib import Path
 import secrets
 import shutil
 import stat
-from memory_bridge.config import load_limits
+from memory_bridge.config import load_limits, validate_nbd_limits
 
 
 def private_key(path):
@@ -48,23 +48,38 @@ def main():
     donor.add_argument("--config", type=Path, help="TOML memory budgets enforced by the donor")
     args = parser.parse_args()
     if args.action == "keygen":
+        # Obtain entropy before creating the file: failures must not leave an
+        # empty key file that prevents a subsequent retry.
+        contents = "borrower:" + secrets.token_hex(32) + "\n"
         # Exclusive create prevents accidental replacement of an active key.
         fd = os.open(args.path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(fd, "w") as output:
-            output.write("borrower:" + secrets.token_hex(32) + "\n")
+            output.write(contents)
         print("Private key created. Transfer securely to the borrower; do not commit it.")
         return
     # Resolve configuration before launching nbdkit. With a configuration and
     # no explicit size, use up to 4 MiB within the owner's configured budget.
     config_path = args.config.resolve(strict=True) if args.config else None
     limits = load_limits(config_path) if config_path else None
+    if limits:
+        try:
+            validate_nbd_limits(limits)
+        except ValueError as error:
+            parser.error(str(error))
     if args.size_mib is None:
         args.size_mib = min(4, limits.per_owner_bytes // (1024 * 1024)) if limits else 4
     if limits and args.size_mib * 1024 * 1024 > limits.per_owner_bytes:
         parser.error("Requested export exceeds per-owner memory budget")
-    key = private_key(args.key)
     if not 1 <= args.size_mib <= 65536 or not 1 <= args.port <= 65535:
-        parser.error("Invalid size or port")
+        parser.error("Export size must be 1..65536 MiB and port must be 1..65535")
+    # Reject a known impossible locked-memory budget before reading the key or
+    # starting nbdkit. This is a necessary check, not a promise of free RAM;
+    # the backend's mandatory mlock remains authoritative at allocation time.
+    import resource
+    soft_limit, _ = resource.getrlimit(resource.RLIMIT_MEMLOCK)
+    if soft_limit != resource.RLIM_INFINITY and args.size_mib * 1024 * 1024 > soft_limit:
+        parser.error("Export exceeds current memlock limit; reduce size or configure the OS limit")
+    key = private_key(args.key)
     executable = shutil.which("nbdkit")
     if not executable:
         parser.error("Install nbdkit and nbdkit-plugin-python first")

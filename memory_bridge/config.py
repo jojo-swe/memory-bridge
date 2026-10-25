@@ -7,6 +7,13 @@ import tomllib
 from .core import Limits
 
 
+def validate_nbd_limits(limits: Limits) -> None:
+    """Check transport constraints without allocating RAM or opening sockets."""
+    maximum = limits.max_request_bytes
+    if maximum < 4096 or maximum > 32 * 1024 * 1024 or maximum & (maximum - 1):
+        raise ValueError("NBD max_request_bytes must be a power of two from 4096 to 33554432")
+
+
 def load_limits(path) -> Limits:
     with Path(path).open("rb") as source:
         document = tomllib.load(source)
