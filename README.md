@@ -1,4 +1,16 @@
-# Memory Bridge — ramverk 0.10.0
+# Memory Bridge — ramverk 0.11.0
+
+## Nytt i 0.11: swap-experiment i disponibel VM
+
+Låntagarens återhämtningslager kan nu exponeras som blockenhet
+(`memory-bridge export`, privat Unix-socket, lokal O_DIRECT-kopia först,
+verifierad givarcache) och har testats som riktig Linux-swap under cgroup-
+minnesbrist, med lokal SSD-swap som jämförelse och injicerade givarfel.
+Kriterierna sattes före mätningen: [docs/SWAP-EXPERIMENT-KRITERIER.md](docs/SWAP-EXPERIMENT-KRITERIER.md).
+Resultat och rådata: [docs/SWAP-EXPERIMENT-RESULTAT.md](docs/SWAP-EXPERIMENT-RESULTAT.md).
+Körinstruktioner: [docs/KORGUIDE.md](docs/KORGUIDE.md). Ingen vardagsdator
+ska kopplas till detta; harnessen kräver en uttryckligen disponibel VM.
+
 
 ## Hela labbet med ett kommando
 

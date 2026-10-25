@@ -1,4 +1,4 @@
-# Memory Bridge 0.8 – körguide
+# Memory Bridge 0.11 – körguide
 
 ## Vad som är färdigt
 
@@ -90,3 +90,53 @@ kontrollerar den i en ny process utan nätverk. Filerna är beständiga och mås
 raderas av dig när testet är klart. Detta är ett annat backend än labbets
 temporära fil och har andra skrivkostnader; jämför inte deras resultat som
 om de hade samma beständighetskrav. Fullständiga begränsningar finns i README.
+
+## 0.11: exponera låntagarlagret som blockenhet (endast disponibel VM)
+
+`memory-bridge export` startar nbdkit med återhämtningslagret (lokal O_DIRECT-
+kopia först, valfri SHA-256-verifierad givarcache) på en privat Unix-socket.
+Det skapar ingen swap och rör ingen enhet; nästa steg gör du själv, och bara
+i en VM du kan kasta.
+
+```bash
+mkdir -m 700 run
+# Lokal kopia i disk-katalogen ./data (tmpfs avvisas), givare på 192.168.1.50
+memory-bridge export --socket run/export.sock --size-mib 1024 --local-dir ./data \
+    --donor-host 192.168.1.50 --key session.psk --timeout 2 --stats export-stats.json
+```
+
+Minneslåsning är på som standard och kräver CAP_IPC_LOCK eller `ulimit -l
+unlimited`; `--no-lock-memory` är enbart för tester. `--local PATH --create`
+ger en namngiven kopia som överlever adapteromstart (kvitterade skrivningar
+läses tillbaka av nästa adapterprocess; cachen räknas då som tom).
+
+Koppla in som swap, i den disponibla VM:en, som root:
+
+```bash
+# Kärna med nbd-modul:
+nbd-client -unix run/export.sock /dev/nbd0 -block-size 4096
+# Kärna utan nbd (som i vårt labb): loop via nbdfuse, direct-io krävs
+mkdir fuse && nbdfuse fuse/swapdev --unix run/export.sock &
+losetup --direct-io=on --sector-size 4096 --show -f fuse/swapdev   # -> /dev/loopN
+mkswap /dev/loopN && swapon /dev/loopN
+```
+
+Avveckla i omvänd ordning: `swapoff`, `losetup -d`, `fusermount3 -u`, stäng
+adaptern. `export-stats.json` skrivs varje sekund och visar varifrån data
+lästs (`remote_read_bytes`/`local_read_bytes`), fjärrfel och fallback.
+
+## Reproducera swap-experimentet
+
+```bash
+sudo apt-get install nbdkit nbdkit-plugin-python python3-libnbd libnbd-bin fuse3 gcc xz-utils nftables
+sudo MB_DISPOSABLE_VM=1 /usr/bin/python3 experiments/swap/run_experiment.py \
+    --i-am-in-a-disposable-vm --out /srv/mbx/exp --rounds 5 --faults all --stress-reps 2
+/usr/bin/python3 experiments/swap/analyze_results.py /srv/mbx/exp
+```
+
+Harnessen vägrar starta om swap redan är aktivt, om zswap är på, eller utan
+båda bekräftelserna. Den städar bara objekt den själv skapat. Rådata:
+`plan.json` (ordning fast före första körningen), `environment.json`,
+`runs.jsonl`, per körning loggar och `samples.jsonl.gz` (4 Hz minnessampel).
+Kriterier och tolkning: [SWAP-EXPERIMENT-KRITERIER.md](SWAP-EXPERIMENT-KRITERIER.md),
+resultat: [SWAP-EXPERIMENT-RESULTAT.md](SWAP-EXPERIMENT-RESULTAT.md).
