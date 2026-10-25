@@ -151,3 +151,24 @@ class NetworkTests(unittest.TestCase):
         with self.assertRaises(BackendError):
             RemoteNBDStorage("127.0.0.1", self.port, wrong, 1024 * 1024, timeout=2)
         self.assertEqual(self.benchmark().returncode, 0)
+
+    def test_comparison_benchmark_uses_live_remote_cache(self):
+        import json
+        result = subprocess.run([sys.executable, 'compare_benchmark.py', '--key', str(self.key),
+                                 '--port', str(self.port), '--size-mib', '1',
+                                 '--operations', '16', '--run-timeout', '10',
+                                 '--directory', self.directory.name],
+                                capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report['order'], ['local', 'remote'])
+        local, remote = report['results']
+        self.assertEqual(local['operations'], remote['operations'])
+        self.assertEqual(local['seed'], remote['seed'])
+        self.assertTrue(remote['cache']['remote_enabled'])
+        self.assertEqual(remote['cache']['remote_errors'], 0)
+        self.assertEqual(remote['cache']['cached_blocks'], 256)
+        self.assertGreater(remote['child_peak_rss_kib'], 0)
+        self.assertGreater(report['duration_ratios']['read_remote_over_local'], 0)
+        # No performance threshold: CI proves correctness, not a speed benefit.
+        print('COMPARISON_RESULT=' + json.dumps(report), flush=True)

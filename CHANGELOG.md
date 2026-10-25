@@ -1,3 +1,10 @@
+## 0.6.0
+
+- Add repeatable local-file versus TLS/NBD cache comparison in isolated processes.
+- Verify deterministic reads and changing writes without retaining a shadow dataset.
+- Report latency, IOPS, initialization, separate process memory peaks and scope limitations.
+- Reject degraded-cache results and kill the experiment process group on a whole-run timeout.
+
 ## 0.5.0
 
 - Connect local-first recovery to TLS-required NBD through an isolated worker.

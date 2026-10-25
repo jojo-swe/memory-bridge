@@ -1,4 +1,4 @@
-# Arkitektur och kontrakt — 0.5
+# Arkitektur och kontrakt — 0.6
 
 ## Moduler
 
@@ -107,3 +107,16 @@ krasch kan lämna en worker kvar om den sitter fast inne i ett nätverksanrop.
 `recovery_client.py` kopplar ihop delarna för ett syntetiskt experiment.
 Linux/POSIX krävs. API-användare måste validera nyckelfilen före konstruktion
 och skydda sökvägen under anslutning; CLI använder den befintliga kontrollen.
+
+## Jämförelse i 0.6
+
+`workload.py` genererar en sida i taget med SHAKE-256 från seed och sidindex,
+initierar exporten och mäter identiska slumpsekvenser. Skrivfasen genererar
+nya data per operation och verifierar dem separat. Ingen skuggkopia av hela
+exporten hålls i RAM; latenslistorna är begränsade till 100000 poster per fas.
+
+`compare_benchmark.py` kör varje läge i egen processgrupp och sammanställer
+JSON. Frisk fjärrcache krävs för ett giltigt fjärrresultat. En tidsgräns för
+hela körningen stoppar också eventuella fastnade NBD-barnprocesser. RSS-toppar
+mätts separat efter städning. Ingen slutsats om verklig RAM-besparing kan dras
+utan även mätning av givare, systemfilcache och en representativ arbetslast.

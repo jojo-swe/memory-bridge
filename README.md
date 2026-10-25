@@ -1,4 +1,4 @@
-# Memory Bridge — ramverk 0.5.0
+# Memory Bridge — ramverk 0.6.0
 
 ## Utveckla utan NAS
 
@@ -34,7 +34,7 @@ Paketet kan även installeras med `python3 -m pip install .`; då finns kommando
 projektmappen enligt instruktionerna nedan och installeras inte som CLI.
 
 Läs [arkitekturen](docs/ARKITEKTUR.md) för tillstånd, säkerhetsgränser och vad
-som återstår. Alla 80 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40185556989), inklusive NBD/TLS på loopback.
+som återstår. Version 0.5.0: alla 80 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40185556989), inklusive NBD/TLS på loopback.
 
 Arbetsnamn, inte kontrollerat varumärke. En första byggsten för att låna RAM
 från en annan Linux-dator på ett betrott hemnätverk.
@@ -189,3 +189,37 @@ ha förbrukat sin enda session redan under anslutningen: starta om den efter
 misslyckade försök. Nyckelfilen och dess överordnade katalog måste vara betrodda;
 libnbd öppnar filen igen efter CLI-kontrollen. Full lokal kopia krävs fortfarande,
 och filer överlever inte klientens avslut. Ingen system-swap aktiveras.
+
+## Jämföra lokal fil med delat RAM – 0.6.0
+
+Utan givare kan du mäta en lokal baslinje:
+
+```bash
+python3 compare_benchmark.py --mode local --size-mib 1 --operations 256
+```
+
+För jämförelse, starta en **ny 1 MiB-givare**, och kör:
+
+```bash
+/usr/bin/python3 compare_benchmark.py --key session.psk --size-mib 1 --operations 256
+```
+
+Båda lägena kör samma seed och sidsekvens i separata processer. Hela exporten
+initieras först, utan att en extra kopia av datamängden behålls i klientens RAM.
+Varje läsning verifieras; skrivningar ändrar data och verifieras med en extra,
+otimad läsning. Rapporten visar median/p95, IOPS, initieringstid och separata
+RSS-toppar för klienten och dess barnprocess. Minnestalen inkluderar inte
+givaren eller systemets filcache och får inte summeras som samtidiga toppar.
+
+`duration_ratios` över 1 betyder att fjärrläget var **långsammare**. Tiderna
+avser endast lagringsanrop; verifiering och datagenerering ingår inte i IOPS.
+Detta är buffrad fil-I/O med varm filcache, ingen mätning av kall SSD eller
+verklig RAM-brist. Ingen global filcache rensas och inget minnestryck skapas.
+Resultatet visar inte automatiskt RAM-besparing eller snabbare program.
+
+Välj fysisk disk med `--directory`, anpassa `--host` för LAN och använd samma
+`--size-mib` som givaren. Gör upprepade körningar med `--order remote-first`
+och `--order local-first` (ny givare varje gång) för att upptäcka ordningseffekter.
+`--run-timeout` begränsar hela varje delkörning; vid timeout dödas dess
+processgrupp, inklusive NBD-processen. `--io-timeout` gäller varje NBD-anrop.
+Om fjärrlagret faller tillbaka till fil avvisas jämförelsen som ogiltig.
