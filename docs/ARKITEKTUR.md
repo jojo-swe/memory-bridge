@@ -1,4 +1,4 @@
-# Arkitektur och kontrakt — 0.3
+# Arkitektur och kontrakt — 0.5
 
 ## Moduler
 
@@ -44,8 +44,7 @@ simulerat minne kan inte väljas genom donor-startarens flaggor.
 
 ## Säkerhet och tillgänglighet
 
-Transporten är konfigurerad för TLS-PSK, men nätverkstesterna återstår i denna
-miljö. Givaren är betrodd och kan läsa data. Inga token eller minnesinnehåll
+Transporten kräver TLS-PSK; verkliga nätverkstester körs på loopback i CI. Givaren är betrodd och kan läsa data. Inga token eller minnesinnehåll
 ingår i kärnans aggregerade statistik. Nyckelfiler får inte versionshanteras.
 Detta är inte en genomförd säkerhetsrevision eller ett skydd mot fientliga
 givare. Nyckelrotation under drift, publik registrering och rate limiting finns
@@ -55,7 +54,7 @@ Ingen automatisk leasing/TTL finns: det vore farligt att återta aktivt
 swapminne utan dränering eller en aktuell reservkopia. Inga löften ges om
 databevarande efter processkrasch, strömavbrott eller frånkoppling. Ingen
 automatisk retry sker efter ett osäkert skrivfel. För en användarprodukt krävs
-en separat, testad strategi för redundans eller lokal skrivgenomgående kopia.
+ytterligare VM/LAN-verifiering av lokal skrivgenomgående kopia och avbrott.
 
 ## Testnivåer
 
@@ -84,3 +83,27 @@ upprepad slumpdata, utan att spara avslutade token. Mellan pooler förlitar
 sig unikheten på slumpgeneratorn. Token får inte parsas av anroparen.
 Startkontroll av memlock anger endast om begäran ryms inom OS-gränsen;
 den garanterar inte ledigt RAM. Själva mlock måste fortfarande lyckas.
+
+## Låntagarlager i 0.5
+
+`local_disk.py` äger en temporär lokal fil. `resilient.py` skriver lokalt först
+och speglar hela berörda block till en valfri cache. Bara bekräftat speglade
+block får läsas från cachen. Felaktig lokal I/O spärrar lagret. Fel i cache-I/O
+kopplar bort cachen permanent; den lokala kopian förblir auktoritativ.
+
+`remote_nbd.py` äger en worker-process och en privat socketpair.
+`nbd_worker.py` utför blockerande libnbd-anrop med obligatorisk TLS-PSK.
+Ett storleksbegränsat binärt protokoll överför kommandon och data. Varje
+transportoperation delar en deadline för sändning, ramhuvud och samtliga
+svarsfragment. Timeout eller protokollfel stänger socketen, dödar processen
+och väntar högst 0,25 sekunder på avslut. Misslyckad städning rapporteras.
+
+Det finns inga automatiska återförsök av osäkra nätverksskrivningar. Lokal
+skrivning har redan lyckats innan en sådan skickas, så cachefel behöver inte
+förlora den lokala uppdateringen. Varken fsync, kraschåterställning eller
+integritetskontroll mot illvillig givare ingår. Föräldraprocessens plötsliga
+krasch kan lämna en worker kvar om den sitter fast inne i ett nätverksanrop.
+
+`recovery_client.py` kopplar ihop delarna för ett syntetiskt experiment.
+Linux/POSIX krävs. API-användare måste validera nyckelfilen före konstruktion
+och skydda sökvägen under anslutning; CLI använder den befintliga kontrollen.

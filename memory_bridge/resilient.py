@@ -1,8 +1,8 @@
 """Local authoritative storage with an optional best-effort remote block cache.
 
-Remote calls have no timeout: a hung donor can still block an operation. This
-wrapper provides neither crash durability nor integrity against a malicious
-remote donor. Backings must be exclusively owned by this wrapper after creation.
+The remote backend must enforce its own deadlines; RemoteNBDStorage does so
+per transport operation. This wrapper provides neither crash durability nor
+integrity against a malicious remote donor. Backings must be exclusively owned by this wrapper after creation.
 """
 
 import threading

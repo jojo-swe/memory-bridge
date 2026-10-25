@@ -3,6 +3,7 @@
 import importlib.util
 from pathlib import Path
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -100,3 +101,53 @@ class NetworkTests(unittest.TestCase):
                 if child.poll() is None:
                     child.kill()
                 child.communicate()
+
+    def _recovery_after_fault(self, freeze):
+        from memory_bridge.local_disk import TemporaryFileStorage
+        from memory_bridge.remote_nbd import RemoteNBDStorage
+        from memory_bridge.resilient import ResilientStorage
+        local = TemporaryFileStorage(1024 * 1024, self.directory.name)
+        self.addCleanup(local.close)
+        remote = RemoteNBDStorage("127.0.0.1", self.port, self.key,
+                                  1024 * 1024, timeout=0.75)
+        self.addCleanup(remote.close)
+        with ResilientStorage(local, remote) as storage:
+            payload = b"across blocks" * 500
+            storage.write(4090, payload)
+            self.assertTrue(storage.snapshot()["remote_enabled"])
+            self.assertEqual(storage.read(4090, len(payload)), payload)
+            self.assertTrue(storage.snapshot()["remote_enabled"])
+            if freeze:
+                # A live TCP connection with an unresponsive server must also
+                # trigger fallback; connection-reset-only coverage is insufficient.
+                self.donor.send_signal(signal.SIGSTOP)
+            else:
+                self.stop_donor()
+            start = time.monotonic()
+            self.assertEqual(storage.read(4090, len(payload)), payload)
+            self.assertLess(time.monotonic() - start, 3.0)
+            self.assertFalse(storage.snapshot()["remote_enabled"])
+            storage.write(0, b"new")
+            self.assertEqual(storage.read(0, 3), b"new")
+
+    def test_recovery_after_killed_donor(self):
+        self._recovery_after_fault(False)
+
+    def test_recovery_after_frozen_donor(self):
+        self._recovery_after_fault(True)
+
+    def test_recovery_transport_rejects_size_mismatch(self):
+        from memory_bridge.remote_nbd import RemoteNBDStorage
+        from memory_bridge.core import BackendError
+        with self.assertRaises(BackendError):
+            RemoteNBDStorage("127.0.0.1", self.port, self.key, 4096, timeout=2)
+
+    def test_recovery_transport_rejects_wrong_key(self):
+        from memory_bridge.remote_nbd import RemoteNBDStorage
+        from memory_bridge.core import BackendError
+        wrong = Path(self.directory.name) / "wrong.psk"
+        subprocess.run([sys.executable, "bridge.py", "keygen", str(wrong)],
+                       check=True, capture_output=True)
+        with self.assertRaises(BackendError):
+            RemoteNBDStorage("127.0.0.1", self.port, wrong, 1024 * 1024, timeout=2)
+        self.assertEqual(self.benchmark().returncode, 0)

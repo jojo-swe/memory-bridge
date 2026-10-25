@@ -1,3 +1,10 @@
+## 0.5.0
+
+- Connect local-first recovery to TLS-required NBD through an isolated worker.
+- Bound remote connection and I/O waits; permanently abandon a failed worker.
+- Add a CLI experiment and integration checks for killed/frozen donors, wrong keys and size mismatch.
+- Local disk operations and whole multi-block requests have no global deadline.
+
 ## 0.4.0
 
 - Add local-first storage with a best-effort block cache and permanent fallback on donor errors.

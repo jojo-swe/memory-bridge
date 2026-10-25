@@ -1,4 +1,4 @@
-# Memory Bridge — ramverk 0.4.0
+# Memory Bridge — ramverk 0.5.0
 
 ## Utveckla utan NAS
 
@@ -18,7 +18,7 @@ python3 -m memory_bridge doctor
 # Kontrollera kärnans exempelkonfiguration; okända inställningar avvisas.
 python3 -m memory_bridge validate-config config/local.toml
 
-# Alla tester. Fyra transporttester hoppas över om NBD-paketen saknas.
+# Alla tester. Transporttester hoppas över om NBD-paketen saknas.
 python3 -m unittest discover -s tests -v
 ```
 
@@ -34,7 +34,7 @@ Paketet kan även installeras med `python3 -m pip install .`; då finns kommando
 projektmappen enligt instruktionerna nedan och installeras inte som CLI.
 
 Läs [arkitekturen](docs/ARKITEKTUR.md) för tillstånd, säkerhetsgränser och vad
-som återstår. Alla 69 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40184413461), inklusive NBD/TLS på loopback.
+som återstår. Version 0.4.0: alla 69 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40184413461), inklusive NBD/TLS på loopback.
 
 Arbetsnamn, inte kontrollerat varumärke. En första byggsten för att låna RAM
 från en annan Linux-dator på ett betrott hemnätverk.
@@ -157,8 +157,35 @@ tillfälliga; diskutrymme reserveras med `posix_fallocate` där det finns.
 Välj en disk, inte tmpfs, vid minnesmätning. OS:ets filcache kan fortfarande
 använda RAM. Filen raderas vid stängning, vilket inte är säker radering.
 
-Detta nya bibliotekslager är ännu inte anslutet till NBD. Det skyddar inte
+Från 0.5.0 kan bibliotekslagret anslutas till NBD med klienten nedan. Det skyddar inte
 mot processkrasch, strömavbrott eller en givare som returnerar felaktigt
-innehåll med rätt längd. Blockerande givaranrop har ännu ingen tidsgräns.
+innehåll med rätt längd. Generiska bakändar måste själva begränsa väntetiden; NBD-klienten nedan gör det.
 Ingen återanslutning eller automatisk återuppbyggnad av cache sker. En lokal
 filkopia av hela lagret behövs; någon prestandavinst är ännu inte uppmätt.
+
+## Nätverksåterhämtning i 0.5.0
+
+Starta en **ny** givare med 1 MiB enligt tidigare instruktioner. Kör sedan:
+
+```bash
+/usr/bin/python3 recovery_client.py --key session.psk --size-mib 1 --timeout 2 --pause-for-fault
+```
+
+Klienten skriver syntetiska data och verifierar dem över TLS/NBD. Vid pausen
+stänger du givaren i dess terminal och trycker sedan Enter hos klienten.
+`fallback_observed: true` visar att läsningen gick vidare med den lokala filkopian.
+Utan pausen körs ett vanligt test; det påstår inte att något avbrott inträffat.
+För två datorer, lägg till `--host GIVARENS_LAN_IP`. Exportstorleken måste matcha
+exakt. `--directory` väljer var den tillfälliga filkopian skapas.
+
+NBD-anropen körs i en separat process. Anslutning och varje transportoperation
+har en egen tidsgräns, inklusive överföring till/från processen. Vid fel stoppas
+processen och cachen överges utan återanslutning. En större klientbegäran kan
+omfatta flera block och därmed flera tidsgränser. Lokal disk-I/O och väntan på
+andra anrop omfattas inte av nätverkstidsgränsen; detta är inte ett realtidssystem.
+
+Startfel avslutar experimentet, även om lokal disk är tillgänglig. Givaren kan
+ha förbrukat sin enda session redan under anslutningen: starta om den efter
+misslyckade försök. Nyckelfilen och dess överordnade katalog måste vara betrodda;
+libnbd öppnar filen igen efter CLI-kontrollen. Full lokal kopia krävs fortfarande,
+och filer överlever inte klientens avslut. Ingen system-swap aktiveras.
