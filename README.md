@@ -325,3 +325,7 @@ Ubuntu-paketets libnbd-bindning tillgänglig; NBD-systempaketen krävs fortfaran
 Övriga kommandon är `compare`, `benchmark`, `recover`, `donor` och `keygen`.
 Använd `memory-bridge KOMMANDO --help`. Befintliga skript i repots rot fungerar
 som kompatibilitetsingångar. Paketet installerar ingen tjänst automatiskt.
+
+## Återuppta utvecklingen
+
+Läs [nuläge, prioriteringar och nästa arbetspass](docs/NULAGE-OCH-NASTA-STEG.md).
