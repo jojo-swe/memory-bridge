@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "memory-bridge-lab"
+version = "0.2.1"
+description = "Experimental bounded RAM-sharing framework and local fault simulator"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+memory-bridge = "memory_bridge.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["memory_bridge*"]

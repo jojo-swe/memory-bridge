@@ -1,0 +1,22 @@
+name: Memory Bridge tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install NBD integration dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nbdkit nbdkit-plugin-python python3-libnbd
+      - name: Verify framework and real TLS/NBD integration
+        run: |
+          ulimit -l
+          /usr/bin/python3 -c 'import nbd'
+          nbdkit python --dump-plugin
+          /usr/bin/python3 -m unittest discover -s tests -v
+          /usr/bin/python3 -m memory_bridge demo
+          /usr/bin/python3 -m memory_bridge validate-config config/local.toml

@@ -1,0 +1,6 @@
+# Data budgets only; process and request buffers use additional RAM.
+[memory]
+total_bytes = 4194304
+per_owner_bytes = 2097152
+max_sessions = 8
+max_request_bytes = 1048576

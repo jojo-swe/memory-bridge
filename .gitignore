@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.psk
+results/
+build/
+dist/
+*.egg-info/
+.venv/
+.env
+*.pem
+*.key
