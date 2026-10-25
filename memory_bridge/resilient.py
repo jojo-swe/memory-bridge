@@ -1,11 +1,13 @@
 """Local authoritative storage with an optional best-effort remote block cache.
 
 The remote backend must enforce its own deadlines; RemoteNBDStorage does so
-per transport operation. This wrapper provides neither crash durability nor
-integrity against a malicious remote donor. Backings must be exclusively owned by this wrapper after creation.
+per transport operation. Local SHA256 digests verify remote block contents
+before exposure. This wrapper provides no crash durability; the local backend
+and process must be trusted. Backings must be exclusively owned after creation.
 """
 
 import threading
+import hashlib
 
 from .core import BackendError, Storage
 
@@ -13,7 +15,8 @@ from .core import BackendError, Storage
 class ResilientStorage:
     """Keep local writes authoritative and permanently abandon a failed cache.
 
-    Cache validity costs one bit per block. transfer_bytes batches contiguous
+    Cache validity costs one bit and integrity costs 32 bytes per block.
+    transfer_bytes batches contiguous
     same-source reads and complete block mirrors; None retains block transfers.
     Explicit transfer sizes must fit the public request maximum. Historically
     a smaller public maximum still permits internal one-block mirror I/O.
@@ -46,6 +49,7 @@ class ResilientStorage:
         # callers whose public request maximum is smaller than a block.
         self._transfer_bytes = block_size if transfer_bytes is None else transfer_bytes
         self._valid = bytearray((self._size // block_size + 7) // 8) if remote is not None else None
+        self._digests = bytearray(self._size // block_size * 32) if remote is not None else None
         self._valid_count = 0
         self._remote_enabled = remote is not None
         self._closed = False
@@ -70,6 +74,7 @@ class ResilientStorage:
         # Release the bitmap rather than constructing an allocation-sized
         # zero buffer. The cache never reconnects after terminal failure.
         self._valid = None
+        self._digests = None
         self._valid_count = 0
 
     def _validate(self, offset, count):
@@ -113,7 +118,12 @@ class ResilientStorage:
             while offset < end:
                 block = offset // self._block_size
                 use_remote = self._remote_enabled and self._is_valid(block)
-                limit = min(end, offset + self._transfer_bytes, offset + self._max_request_bytes)
+                # Remote reads include whole blocks even for a partial caller
+                # range, so corruption outside that range is still detected.
+                start = block * self._block_size if use_remote else offset
+                limit = min(end, start + self._transfer_bytes)
+                if not use_remote:
+                    limit = min(limit, offset + self._max_request_bytes)
                 stop = min(limit, (block + 1) * self._block_size)
                 # Coalesce adjacent blocks only while their backing agrees.
                 while stop < limit:
@@ -124,7 +134,17 @@ class ResilientStorage:
                 length = stop - offset
                 if use_remote:
                     try:
-                        data = self._read(self._remote, offset, length)
+                        remote_end = ((stop + self._block_size - 1) // self._block_size) * self._block_size
+                        full = self._read(self._remote, start, remote_end - start)
+                        view = memoryview(full)
+                        for index in range(start // self._block_size,
+                                           remote_end // self._block_size):
+                            relative = index * self._block_size - start
+                            digest = hashlib.sha256(view[relative:relative + self._block_size]).digest()
+                            if digest != self._digests[index * 32:(index + 1) * 32]:
+                                raise OSError("Remote block integrity failure")
+                        # Expose no part of a batch until every block passes.
+                        data = full[offset - start:stop - start]
                     except BaseException as error:
                         self._disable_remote()
                         if not isinstance(error, Exception):
@@ -178,6 +198,9 @@ class ResilientStorage:
                     # A batch becomes eligible only after its remote ACK.
                     for block in range(start // self._block_size,
                                        (start + length) // self._block_size):
+                        relative = block * self._block_size - start
+                        digest = hashlib.sha256(memoryview(full)[relative:relative + self._block_size]).digest()
+                        self._digests[block * 32:(block + 1) * 32] = digest
                         self._mark(block, True)
                     start += length
 
@@ -188,6 +211,7 @@ class ResilientStorage:
                     "remote_enabled": self._remote_enabled,
                     "cached_blocks": self._valid_count,
                     "valid_bitmap_bytes": len(self._valid) if self._valid is not None else 0,
+                    "integrity_bytes": len(self._digests) if self._digests is not None else 0,
                     "capacity_bytes": self._size,
                     "remote_errors": self._remote_errors}
 
