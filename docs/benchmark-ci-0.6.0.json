@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "python": "3.12.3",
+  "system": "Linux",
+  "order": [
+    "local",
+    "remote"
+  ],
+  "results": [
+    {
+      "operations": 16,
+      "seed": 42,
+      "page_size": 4096,
+      "export_bytes": 1048576,
+      "initialization_seconds": 0.003996072,
+      "read": {
+        "operations": 16,
+        "duration_seconds": 0.000051067,
+        "median_ms": 0.0024745,
+        "p95_ms": 0.011252,
+        "iops": 313313.8817631739
+      },
+      "write": {
+        "operations": 16,
+        "duration_seconds": 0.000052187,
+        "median_ms": 0.003076,
+        "p95_ms": 0.00519,
+        "iops": 306589.7637342633,
+        "verification_reads": 16
+      },
+      "mode": "local",
+      "cache": null,
+      "process_peak_rss_kib": 21128,
+      "child_peak_rss_kib": 0
+    },
+    {
+      "operations": 16,
+      "seed": 42,
+      "page_size": 4096,
+      "export_bytes": 1048576,
+      "initialization_seconds": 0.05616914,
+      "read": {
+        "operations": 16,
+        "duration_seconds": 0.003087901,
+        "median_ms": 0.186675,
+        "p95_ms": 0.219712,
+        "iops": 5181.513267426643
+      },
+      "write": {
+        "operations": 16,
+        "duration_seconds": 0.003287163,
+        "median_ms": 0.2030055,
+        "p95_ms": 0.219451,
+        "iops": 4867.419108818151,
+        "verification_reads": 16
+      },
+      "mode": "remote",
+      "cache": {
+        "closed": false,
+        "failed": false,
+        "remote_enabled": true,
+        "cached_blocks": 256,
+        "capacity_bytes": 1048576,
+        "remote_errors": 0
+      },
+      "process_peak_rss_kib": 21228,
+      "child_peak_rss_kib": 25660
+    }
+  ],
+  "duration_ratios": {
+    "read_remote_over_local": 60.46764055064915,
+    "write_remote_over_local": 62.98815797037577
+  },
+  "interpretation": "Ratio above 1 means remote mode was slower",
+  "limitations": [
+    "Buffered file I/O; OS page cache is not dropped",
+    "Not a cold SSD or memory-pressure benchmark",
+    "RSS excludes donor and system page-cache accounting",
+    "Separate RSS peaks cannot be added as simultaneous usage",
+    "No application speedup or RAM saving is established"
+  ],
+  "provenance": {
+    "commit": "ba79b83779c1e4ca3c0e67e5581b1dee1b1285f6",
+    "ci_run": "https://github.com/jojo-swe/memory-bridge/actions/runs/40186254875",
+    "scope": "One 1 MiB loopback CI smoke test, 16 measured reads and writes per mode. Not a performance study."
+  }
+}

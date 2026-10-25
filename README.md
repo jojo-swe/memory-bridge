@@ -34,7 +34,7 @@ Paketet kan även installeras med `python3 -m pip install .`; då finns kommando
 projektmappen enligt instruktionerna nedan och installeras inte som CLI.
 
 Läs [arkitekturen](docs/ARKITEKTUR.md) för tillstånd, säkerhetsgränser och vad
-som återstår. Version 0.5.0: alla 80 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40185556989), inklusive NBD/TLS på loopback.
+som återstår. Alla 93 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40186254875), inklusive NBD/TLS på loopback.
 
 Arbetsnamn, inte kontrollerat varumärke. En första byggsten för att låna RAM
 från en annan Linux-dator på ett betrott hemnätverk.
@@ -223,3 +223,8 @@ och `--order local-first` (ny givare varje gång) för att upptäcka ordningseff
 `--run-timeout` begränsar hela varje delkörning; vid timeout dödas dess
 processgrupp, inklusive NBD-processen. `--io-timeout` gäller varje NBD-anrop.
 Om fjärrlagret faller tillbaka till fil avvisas jämförelsen som ogiltig.
+
+Första CI-provet (1 MiB, 16 operationer per fas, loopback och varm cache) gav
+långsammare fjärrläge. Detta lilla funktionstest visar ingen prestandavinst.
+Rådata och exakta förutsättningar finns i
+[benchmark-ci-0.6.0.json](docs/benchmark-ci-0.6.0.json).

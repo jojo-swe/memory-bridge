@@ -118,5 +118,5 @@ exporten hålls i RAM; latenslistorna är begränsade till 100000 poster per fas
 `compare_benchmark.py` kör varje läge i egen processgrupp och sammanställer
 JSON. Frisk fjärrcache krävs för ett giltigt fjärrresultat. En tidsgräns för
 hela körningen stoppar också eventuella fastnade NBD-barnprocesser. RSS-toppar
-mätts separat efter städning. Ingen slutsats om verklig RAM-besparing kan dras
+mäts separat efter städning. Ingen slutsats om verklig RAM-besparing kan dras
 utan även mätning av givare, systemfilcache och en representativ arbetslast.

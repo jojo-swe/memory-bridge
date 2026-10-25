@@ -1,3 +1,22 @@
+## 0.6.0 – jämförande benchmark
+
+[Run 40186254875](https://github.com/jojo-swe/memory-bridge/actions/runs/40186254875):
+**93 godkända tester, inga överhoppade**, commit
+`ba79b83779c1e4ca3c0e67e5581b1dee1b1285f6`.
+Lokalt: 84 godkända och nio transporttester överhoppade. Paketbygge lyckades.
+
+Ett enda litet CI-prov, 1 MiB och 16 läsningar/skrivningar per läge, verifierade
+att jämförelsen använder en frisk TLS/NBD-cache. Medianläsning var 0,00247 ms
+lokalt och 0,18668 ms med fjärrcache. Medianskrivning var 0,00308 respektive
+0,20301 ms. Klientens RSS-topp var 21128 respektive 21228 KiB; NBD-barnets
+separata topp var 25660 KiB. Givarens minne och systemfilcache ingår inte.
+
+Fjärrläget var långsammare i detta prov. Det är en funktionskontroll med varm
+filcache på loopback, inte en tillförlitlig studie av SSD, LAN eller minnestryck.
+[Full rårapport](benchmark-ci-0.6.0.json) innehåller seed, mätvärden och begränsningar.
+Regressioner fångar tappade skrivningar, korrupta läsningar, dold lokal fallback
+och kontrollerar att timeout stoppar hela experimentets processgrupp.
+
 ## 0.5.0 – verklig nätverksåterhämtning
 
 [Run 40185556989](https://github.com/jojo-swe/memory-bridge/actions/runs/40185556989):
