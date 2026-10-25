@@ -321,3 +321,15 @@ class CancellationTests(unittest.TestCase):
                 storage.write(0, b'saved')
             self.assertFalse(storage.snapshot()['remote_enabled'])
             self.assertEqual(storage.read(0, 5), b'saved')
+
+    def test_interrupted_close_still_closes_remote(self):
+        local, remote = RecordingMemory(), RecordingMemory()
+        storage = ResilientStorage(local, remote)
+        def interrupt():
+            raise KeyboardInterrupt
+        local.close = interrupt
+        with self.assertRaises(KeyboardInterrupt):
+            storage.close()
+        self.assertTrue(remote.closed)
+        with self.assertRaises(BackendError):
+            storage.close()

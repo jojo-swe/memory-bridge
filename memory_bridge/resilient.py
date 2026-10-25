@@ -197,12 +197,17 @@ class ResilientStorage:
                 self._closed = True
                 self._remote_enabled = False
                 self._clear_valid()
+                cancellation = None
                 for storage in (self._local, self._remote):
                     if storage is not None:
                         try:
                             storage.close()
-                        except Exception:
+                        except BaseException as error:
                             self._close_failed = True
+                            if not isinstance(error, Exception) and cancellation is None:
+                                cancellation = error
+                if cancellation is not None:
+                    raise cancellation
             if self._close_failed:
                 raise BackendError("Storage cleanup failed") from None
 
