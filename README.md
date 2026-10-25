@@ -53,7 +53,7 @@ Paketet kan även installeras med `python3 -m pip install .`; då finns kommando
 projektmappen enligt instruktionerna nedan och installeras inte som CLI.
 
 Läs [arkitekturen](docs/ARKITEKTUR.md) för tillstånd, säkerhetsgränser och vad
-som återstår. Version 0.6.0: alla 93 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40186254875), inklusive NBD/TLS på loopback.
+som återstår. Alla 119 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40188868175), inklusive NBD/TLS på loopback.
 
 Arbetsnamn, inte kontrollerat varumärke. En första byggsten för att låna RAM
 från en annan Linux-dator på ett betrott hemnätverk.
@@ -260,3 +260,7 @@ måste vara en tvåpotens mellan 4 och 1024 och används lika för båda lägena
 virtuell adressrymd per process, inte sammanlagd RAM-användning, givaren eller
 systemfilcache. Alltför låg gräns avbryter experimentet. Detta ersätter inte
 ett test av hela systemets minnestryck i en VM eller delegerad cgroup.
+
+Version 0.7.0 har även verifierats med 64 KiB-anrop och en adressrymdsgräns
+på 128 MiB per klientprocess. [Rårapport](docs/benchmark-ci-0.7.0.json).
+Fjärrläget var fortfarande långsammare i detta lilla loopback-prov.

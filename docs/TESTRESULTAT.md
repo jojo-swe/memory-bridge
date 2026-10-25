@@ -1,3 +1,25 @@
+## 0.7.0 – komplett loopback-labb och mindre klientmetadata
+
+[Run 40188868175](https://github.com/jojo-swe/memory-bridge/actions/runs/40188868175):
+**119 godkända tester, inga överhoppade**, commit
+`0909ab4c2f5c06483acc6b494c4b7a47d3e7e05e`.
+Lokalt: 108 godkända, elva integrationstester överhoppade. Wheelbygge lyckades.
+
+Verifierat i CI:
+
+- Hela labbet med tillfällig TLS-nyckel, givare, jämförelse och städning, startat utanför repot.
+- 64 KiB-anrop mot riktig NBD-givare under 128 MiB RLIMIT_AS per klientprocess.
+- Bitmap: 32 bytes för 256 block i ett 1 MiB-export, med fungerande fjärrcache.
+- Sammanhängande batcher, blandade datakällor, partiella kanter och sena batchfel.
+- Randomiserade läsningar/skrivningar jämförda med referens före/efter cacheförlust.
+- Ctrl+C/SystemExit spärrar osäkra I/O och städar nätverksprocesser; shutdown försöker alla bakändar.
+- De tidigare testerna för fryst/död givare, fel nyckel och exportstorlek.
+
+[Benchmarkrapport](benchmark-ci-0.7.0.json): ett litet loopback-prov med varm
+filcache. Fjärrläget var fortsatt långsammare. RLIMIT_AS är en adressrymdsgräns,
+inte mätning av systemets RAM-brist. Varken fysisk LAN-prestanda, beständig
+kraschåterställning eller system-swap har verifierats.
+
 ## 0.6.0 – jämförande benchmark
 
 [Run 40186254875](https://github.com/jojo-swe/memory-bridge/actions/runs/40186254875):
