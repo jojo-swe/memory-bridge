@@ -4,8 +4,12 @@ A process that serves swap I/O must not itself be swapped out to the device it
 serves (recursive swap), and its own allocations should not recurse into I/O
 that waits for itself (deadlock under memory pressure). Linux offers two tools:
 
-* mlockall(MCL_CURRENT | MCL_FUTURE): keep current and future pages resident.
-  Future allocations still need free pages; mlock only prevents eviction.
+* mlockall(MCL_CURRENT | MCL_FUTURE | MCL_ONFAULT): pages become locked as
+  they are faulted in, instead of pre-faulting the whole address space.
+  Without MCL_ONFAULT a Python/nbdkit process grows from ~25 MiB to ~250 MiB
+  resident (thread stacks, glibc arenas, mapped libraries), which defeats the
+  point of borrowing RAM. Locked pages still need free RAM to be faulted in;
+  mlock only prevents eviction.
 * prctl(PR_SET_IO_FLUSHER): mark the process as an I/O flusher, which makes
   its allocations behave as GFP_NOIO and exempts it from some throttling.
   This needs CAP_SYS_RESOURCE and is inherited across fork and execve.
@@ -20,6 +24,7 @@ import os
 
 MCL_CURRENT = 1
 MCL_FUTURE = 2
+MCL_ONFAULT = 4  # Linux 4.4+
 PR_SET_IO_FLUSHER = 57
 PR_GET_IO_FLUSHER = 58
 
@@ -29,9 +34,9 @@ def _libc():
 
 
 def lock_all_memory():
-    """mlockall(MCL_CURRENT|MCL_FUTURE); raises OSError when it fails."""
+    """mlockall(MCL_CURRENT|MCL_FUTURE|MCL_ONFAULT); raises OSError on failure."""
     libc = _libc()
-    if libc.mlockall(MCL_CURRENT | MCL_FUTURE) != 0:
+    if libc.mlockall(MCL_CURRENT | MCL_FUTURE | MCL_ONFAULT) != 0:
         error = ctypes.get_errno()
         raise OSError(error, "mlockall failed: " + os.strerror(error))
 

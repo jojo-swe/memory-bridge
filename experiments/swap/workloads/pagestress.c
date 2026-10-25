@@ -192,6 +192,9 @@ static uint64_t percentile_nr(const uint64_t *sorted, uint64_t n, double p)
 
 /* ---------------------------------------------------------------- CLI */
 
+/* Upper bound on logged slow requests, so a pathological run stays readable. */
+#define MAX_SLOW_LOG 2000
+
 struct params {
     uint64_t size_mib;
     uint64_t requests;
@@ -204,6 +207,7 @@ struct params {
     const char *json_out;
     bool corrupt_self_test;
     bool print_digest;
+    double slow_ms;      /* requests at least this slow are logged to stderr */
 };
 
 static void usage(FILE *f)
@@ -212,7 +216,8 @@ static void usage(FILE *f)
         "usage: pagestress --size-mib N [--requests R] [--duration-s S]\n"
         "                  [--pages-per-request K] [--hot-fraction F]\n"
         "                  [--hot-probability P] [--write-fraction W] [--seed S]\n"
-        "                  [--json-out PATH] [--corrupt-for-self-test]\n"
+        "                  [--json-out PATH] [--slow-ms MS] [--corrupt-for-self-test]\n"
+        "  Requests taking at least MS (default 100) are logged to stderr with a timestamp.\n"
         "  At least one of --requests / --duration-s must be > 0.\n"
         "  Exit: 0 ok, 1 system error, 2 usage error, 3 verification error.\n");
 }
@@ -276,6 +281,7 @@ struct results {
     double p50, p90, p99, p999, lat_max, lat_mean;
     bool latency_truncated, interrupted;
     uint64_t verify_errors, final_sweep_errors;
+    uint64_t slow_requests;
     uint64_t digest;
     struct rusage ru;
 };
@@ -290,7 +296,8 @@ static void print_json(FILE *f, const struct params *pp, const struct results *r
             pp->size_mib, pp->requests, pp->duration_s, pp->pages_per_request,
             pp->hot_fraction, pp->hot_probability, pp->write_fraction, pp->seed);
     json_string(f, pp->json_out);
-    fprintf(f, ",\"corrupt_for_self_test\":%s}", pp->corrupt_self_test ? "true" : "false");
+    fprintf(f, ",\"corrupt_for_self_test\":%s,\"slow_ms\":%.3f}",
+            pp->corrupt_self_test ? "true" : "false", pp->slow_ms);
     fprintf(f, ",\"page_size\":%u,\"page_count\":%" PRIu64 ",\"hot_pages\":%" PRIu64,
             PAGE_SIZE_REQUIRED, r->page_count, r->hot_count);
     fprintf(f, ",\"populate_s\":%.6f,\"request_phase_s\":%.6f", r->populate_s, r->request_phase_s);
@@ -302,8 +309,9 @@ static void print_json(FILE *f, const struct params *pp, const struct results *r
             r->p50, r->p90, r->p99, r->p999, r->lat_max, r->lat_mean, r->lat_recorded);
     fprintf(f, ",\"latency_truncated\":%s,\"interrupted\":%s",
             r->latency_truncated ? "true" : "false", r->interrupted ? "true" : "false");
-    fprintf(f, ",\"verify_errors\":%" PRIu64 ",\"final_sweep_errors\":%" PRIu64,
-            r->verify_errors, r->final_sweep_errors);
+    fprintf(f, ",\"verify_errors\":%" PRIu64 ",\"final_sweep_errors\":%" PRIu64
+               ",\"slow_requests\":%" PRIu64,
+            r->verify_errors, r->final_sweep_errors, r->slow_requests);
     fprintf(f, ",\"final_sweep_s\":%.6f,\"total_s\":%.6f", r->final_sweep_s, r->total_s);
     fprintf(f, ",\"max_rss_kib\":%ld,\"major_faults\":%ld,\"minor_faults\":%ld"
                ",\"voluntary_ctx_switches\":%ld,\"involuntary_ctx_switches\":%ld",
@@ -346,11 +354,12 @@ int main(int argc, char **argv)
         .size_mib = 0, .requests = 0, .duration_s = 0.0, .pages_per_request = 8,
         .hot_fraction = 0.2, .hot_probability = 0.8, .write_fraction = 0.1,
         .seed = 1, .json_out = NULL, .corrupt_self_test = false, .print_digest = false,
+        .slow_ms = 100.0,
     };
     bool have_size = false;
 
     enum { O_SIZE = 1000, O_REQ, O_DUR, O_KPR, O_HOTF, O_HOTP, O_WF, O_SEED, O_JSON,
-           O_CORRUPT, O_DIGEST, O_HELP };
+           O_CORRUPT, O_DIGEST, O_SLOW, O_HELP };
     static const struct option longopts[] = {
         {"size-mib", required_argument, NULL, O_SIZE},
         {"requests", required_argument, NULL, O_REQ},
@@ -363,6 +372,7 @@ int main(int argc, char **argv)
         {"json-out", required_argument, NULL, O_JSON},
         {"corrupt-for-self-test", no_argument, NULL, O_CORRUPT},
         {"print-digest", no_argument, NULL, O_DIGEST}, /* hidden: for tests */
+        {"slow-ms", required_argument, NULL, O_SLOW},
         {"help", no_argument, NULL, O_HELP},
         {NULL, 0, NULL, 0},
     };
@@ -387,6 +397,8 @@ int main(int argc, char **argv)
         case O_JSON: ok = optarg && *optarg; pp.json_out = optarg; break;
         case O_CORRUPT: pp.corrupt_self_test = true; break;
         case O_DIGEST:  pp.print_digest = true; break;
+        case O_SLOW: ok = parse_double(optarg, &pp.slow_ms) && pp.slow_ms > 0.0 &&
+                          pp.slow_ms < 1e9; break;
         case O_HELP: usage(stdout); return EXIT_OK;
         default: usage(stderr); return EXIT_USAGE;
         }
@@ -525,6 +537,10 @@ int main(int argc, char **argv)
     const uint64_t dur_ns = pp.duration_s > 0 ? (uint64_t)(pp.duration_s * 1e9) : 0;
     uint64_t lat_sum = 0, lat_max = 0, reported = 0, n = 0;
     uint64_t t_req0 = now_ns(), last_progress = t_req0, t_now = t_req0;
+    const uint64_t slow_ns = (uint64_t)(pp.slow_ms * 1e6);
+    uint64_t slow_logged = 0;
+    /* Marker for external fault injection: the request phase begins now. */
+    fprintf(stderr, "pagestress: request-phase-start populate_s=%.3f\n", r.populate_s);
 
     while (!g_stop) {
         if (pp.requests > 0 && n >= pp.requests)
@@ -561,6 +577,16 @@ int main(int argc, char **argv)
         lat_sum += l;
         if (l > lat_max)
             lat_max = l;
+        if (l >= slow_ns) {
+            /* Timestamped stalls show when (not only how long) the workload
+             * waited, e.g. around an injected donor fault. Bounded output. */
+            r.slow_requests++;
+            if (slow_logged < MAX_SLOW_LOG) {
+                slow_logged++;
+                fprintf(stderr, "pagestress: slow request=%" PRIu64 " start_s=%.6f latency_ms=%.3f\n",
+                        n, (double)(rs - t_req0) / 1e9, (double)l / 1e6);
+            }
+        }
         n++;
 
         if (t_now - last_progress >= PROGRESS_INTERVAL_NS) {

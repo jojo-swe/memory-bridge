@@ -46,6 +46,9 @@ def main():
     donor.add_argument("--port", type=int, default=10809)
     donor.add_argument("--size-mib", type=int, default=None)
     donor.add_argument("--config", type=Path, help="TOML memory budgets enforced by the donor")
+    donor.add_argument("--lab-delay-ms", type=int, default=0,
+                       help="Laboratory only: add this delay to every read/write "
+                            "(nbdkit delay filter) to model network latency")
     args = parser.parse_args()
     if args.action == "keygen":
         # Obtain entropy before creating the file: failures must not leave an
@@ -72,6 +75,8 @@ def main():
         parser.error("Requested export exceeds per-owner memory budget")
     if not 1 <= args.size_mib <= 65536 or not 1 <= args.port <= 65535:
         parser.error("Export size must be 1..65536 MiB and port must be 1..65535")
+    if not 0 <= args.lab_delay_ms <= 1000:
+        parser.error("--lab-delay-ms must be 0..1000")
     # Reject a known impossible locked-memory budget before reading the key or
     # starting nbdkit. This is a necessary check, not a promise of free RAM;
     # the backend's mandatory mlock remains authoritative at allocation time.
@@ -91,9 +96,14 @@ def main():
     # --foreground avoids daemon fork after mlock (locks are not inherited).
     # Required PSK TLS authenticates the borrower and forbids plaintext peers.
     command = [executable, "--foreground", "--threads=1", "--tls=require",
-               f"--tls-psk={key}", f"--ipaddr={args.bind}",
-               f"--port={args.port}", "python", str(plugin),
-               f"size_mib={args.size_mib}"]
+               f"--tls-psk={key}", f"--ipaddr={args.bind}", f"--port={args.port}"]
+    if args.lab_delay_ms:
+        # Filters wrap the plugin; TLS, binding and the single-use RAM export
+        # are unchanged. The delay applies per NBD request at the donor.
+        command.append("--filter=delay")
+    command += ["python", str(plugin), f"size_mib={args.size_mib}"]
+    if args.lab_delay_ms:
+        command += [f"delay-read={args.lab_delay_ms}ms", f"delay-write={args.lab_delay_ms}ms"]
     if config_path:
         command.append(f"config_file={config_path}")
     print(f"Volatile RAM export: {args.size_mib} MiB at {args.bind}:{args.port}", flush=True)
