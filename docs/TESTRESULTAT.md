@@ -1,3 +1,12 @@
+## 0.4.0 – lokal verifiering
+
+69 tester: 65 godkända, 4 NBD/TLS-tester hoppas över eftersom systempaketen
+saknas i utvecklingsmiljön. Återhämtningsdemon med riktig temporär fil klarar
+simulerat givaravbrott och fortsatta skrivningar. Ett deterministiskt test
+jämför 200 överlappande skrivningar med en referens, före och efter avbrott.
+CI kör samma svit med obligatoriska NBD-beroenden och tillåter inga hoppade tester.
+Detta är ingen verifiering av återhämtning över nätverk eller system-swap.
+
 # Verifiering 2026-10-25 — ramverk 0.2.1
 
 Miljö: Ubuntu 24.04.3, Python 3.12.14, memlock-gräns 8192 KiB.

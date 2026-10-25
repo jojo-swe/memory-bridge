@@ -21,4 +21,5 @@ jobs:
           nbdkit python --dump-plugin
           /usr/bin/python3 run_tests.py --require-integration
           /usr/bin/python3 -m memory_bridge demo
+          /usr/bin/python3 -m memory_bridge recovery-demo
           /usr/bin/python3 -m memory_bridge validate-config config/local.toml

@@ -1,4 +1,4 @@
-# Memory Bridge — ramverk 0.3.1
+# Memory Bridge — ramverk 0.4.0
 
 ## Utveckla utan NAS
 
@@ -8,6 +8,9 @@ har inga externa Python-beroenden och öppnar inga nätverksportar.
 ```bash
 # Två isolerade låntagare, simulerat givaravbrott och spärrad gammal session.
 python3 -m memory_bridge demo
+
+# Lokal filkopia överlever ett simulerat givaravbrott.
+python3 -m memory_bridge recovery-demo
 
 # Läs diagnostik utan att ändra systeminställningar.
 python3 -m memory_bridge doctor
@@ -31,7 +34,7 @@ Paketet kan även installeras med `python3 -m pip install .`; då finns kommando
 projektmappen enligt instruktionerna nedan och installeras inte som CLI.
 
 Läs [arkitekturen](docs/ARKITEKTUR.md) för tillstånd, säkerhetsgränser och vad
-som återstår. Alla 52 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40182136372), inklusive NBD/TLS på loopback.
+som återstår. Föregående version: alla 52 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40182136372), inklusive NBD/TLS på loopback.
 
 Arbetsnamn, inte kontrollerat varumärke. En första byggsten för att låna RAM
 från en annan Linux-dator på ett betrott hemnätverk.
@@ -140,3 +143,22 @@ CI kör `python3 run_tests.py --require-integration` och misslyckas om något
 test hoppas över. Givaren kontrollerar NBD-blockstorlek och aktuell
 memlock-gräns innan nyckelfilen läses; mlock vid allokering är fortsatt
 den slutliga kontrollen. Sessions-token är opaka och får inte tolkas av klienter.
+
+## Lokal återhämtning i 0.4.0
+
+`ResilientStorage` skriver till en lokal filkopia innan givarens cache uppdateras.
+Endast fullständigt speglade block får läsas från givaren. Vid ett rapporterat
+givarfel kopplas cachen bort permanent och läsningar fortsätter från filen.
+Fel i den lokala kopian stoppar lagret; osäkra skrivningar får inte döljas.
+
+Kör `python3 -m memory_bridge recovery-demo --directory /sökväg/till/testdisk`.
+Demon använder riktig fil-I/O och en simulerad givare. Filerna är privata och
+tillfälliga; diskutrymme reserveras med `posix_fallocate` där det finns.
+Välj en disk, inte tmpfs, vid minnesmätning. OS:ets filcache kan fortfarande
+använda RAM. Filen raderas vid stängning, vilket inte är säker radering.
+
+Detta nya bibliotekslager är ännu inte anslutet till NBD. Det skyddar inte
+mot processkrasch, strömavbrott eller en givare som returnerar felaktigt
+innehåll med rätt längd. Blockerande givaranrop har ännu ingen tidsgräns.
+Ingen återanslutning eller automatisk återuppbyggnad av cache sker. En lokal
+filkopia av hela lagret behövs; någon prestandavinst är ännu inte uppmätt.

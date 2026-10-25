@@ -1,3 +1,10 @@
+## 0.4.0
+
+- Add local-first storage with a best-effort block cache and permanent fallback on donor errors.
+- Add private temporary-file backing and a runnable donor-loss recovery demo.
+- Fail closed after local backing errors; serialize overlapping reads and writes.
+- This transport-independent prototype is not yet connected to NBD or safe for system swap.
+
 # Changelog
 
 ## 0.3.1 — 2026-10-25

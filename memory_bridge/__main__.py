@@ -52,11 +52,16 @@ def main():
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("demo")
     commands.add_parser("doctor")
+    recovery = commands.add_parser("recovery-demo")
+    recovery.add_argument("--directory", help="Directory for temporary local backing")
     validate = commands.add_parser("validate-config")
     validate.add_argument("path")
     args = parser.parse_args()
     if args.command == "demo":
         demo()
+    elif args.command == "recovery-demo":
+        from .recovery_demo import recovery_demo
+        recovery_demo(args.directory)
     elif args.command == "validate-config":
         limits = load_limits(args.path)
         print(json.dumps(limits.__dict__, indent=2))
