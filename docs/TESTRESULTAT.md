@@ -44,3 +44,12 @@ på commit `fa43b875c3e3f50a58a1bdb15c982a982f40f6fb`: **47 godkända tester, in
 Lokalt passerade 43 tester; fyra transporttester kördes i CI. Nya tester täcker
 TOML-kvoter i adaptern, annonserad I/O-gräns, ogiltig NBD-blockstorlek,
 CLI-konfiguration och dränering med bevarade sessioner.
+
+## Version 0.3.1 — 52 tester
+
+[Run 40182136372](https://github.com/jojo-swe/memory-bridge/actions/runs/40182136372),
+commit `bace9c922bd07de1fc2aed27b8e2579b6e69ff0b`: **52 godkända, inga överhoppade.**
+Den strikta testkörningen kräver att alla tester körs. Lokalt: 48 godkända
+och fyra transporttester överhoppade; strikt läge avvisade korrekt detta resultat.
+Regressioner täcker återanvända slumptoken efter frigöring/karantän,
+entropifel vid nyckelskapande och startkontroller före nyckelläsning.
