@@ -54,6 +54,11 @@ class RemoteNBDStorage:
         self._size = size
         self._timeout = float(timeout)
         self._python = str(python)
+        # One caller-level request may consist of several transport calls;
+        # they share this deadline so a slow donor cannot stall a request for
+        # N x timeout. None means each call gets its own deadline.
+        self._request_deadline = None
+        self.worker_protections = {"mlockall": False, "io_flusher": False}
         self._maximum = max_request_bytes
         self._lock = threading.RLock()
         self._closed = False
@@ -65,9 +70,14 @@ class RemoteNBDStorage:
             request = json.dumps({"host": host, "port": port, "key": key,
                                   "size": size, "maximum": max_request_bytes,
                                   "lock_memory": lock_memory}).encode()
-            response = self._exchange(b"H" + request, 1)
-            if response != b"K":
+            response = self._exchange(b"H" + request, 2)
+            if response[:1] != b"K" or len(response) > 2:
                 raise ValueError("Invalid handshake")
+            # A one-byte reply comes from a worker that reports no
+            # protections (older or simulated); two bytes carry flag bits.
+            flags = response[1] if len(response) == 2 else 0
+            self.worker_protections = {"mlockall": bool(flags & 1),
+                                       "io_flusher": bool(flags & 2)}
         except BaseException as error:
             child.close()
             self._stop()
@@ -97,8 +107,18 @@ class RemoteNBDStorage:
             result.extend(part)
         return bytes(result)
 
+    def begin_request(self):
+        """Start one caller request: every transport call until end_request
+        shares a single deadline of `timeout` seconds."""
+        self._request_deadline = time.monotonic() + self._timeout
+
+    def end_request(self):
+        self._request_deadline = None
+
     def _exchange(self, request, response_limit):
-        deadline = time.monotonic() + self._timeout
+        deadline = self._request_deadline
+        if deadline is None:
+            deadline = time.monotonic() + self._timeout
         # sendall has one total socket timeout; the same deadline also covers
         # every receive fragment, including the frame header.
         self._remaining(deadline)

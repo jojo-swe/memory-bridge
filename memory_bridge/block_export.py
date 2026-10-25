@@ -18,6 +18,9 @@ Guarantees advertised to the NBD client, and only these:
   write + flush. The donor's RAM never counts toward durability.
 * No multi-conn, trim, zero offload or caching hints: nbdkit emulates zero
   writes with ordinary writes, so every byte still follows the local-first path.
+* With a temporary (O_TMPFILE) backing, flush only means "reached the device
+  for the lifetime of this process": the data has no name and is gone when
+  the export exits. Use a named backing for restartable durability.
 * One client connection at a time (exclusive ownership). A later client may
   connect after the previous one closed; data lives as long as this process,
   and across restarts only with a named local backing (see restart notes).
@@ -29,11 +32,12 @@ Python still allocates per request; this is reduced, not eliminated, deadlock
 risk. See docs/SWAP-EXPERIMENT-RESULTAT.md for what was and was not tested.
 """
 
-import builtins
+import io
 import json
 import os
 from pathlib import Path
 import sys
+import tempfile
 import threading
 import time
 
@@ -101,7 +105,18 @@ class ExportState:
                   "worker_pid": None}
         if self.remote is not None and self.remote._process is not None:
             report["worker_pid"] = self.remote._process.pid
+        report["worker_protections"] = (self.remote.worker_protections
+                                        if self.remote is not None else None)
         report["store"] = self.store.snapshot()
+        status = {}
+        try:
+            with io.open("/proc/self/status") as lines:  # open() is the NBD callback here
+                for line in lines:
+                    if line.startswith(("VmRSS:", "VmLck:", "VmSwap:")):
+                        status[line.split(":")[0]] = int(line.split()[1])
+        except (OSError, ValueError):
+            pass
+        report["export_memory_kib"] = status
         return report
 
 
@@ -180,6 +195,11 @@ def config_complete():
         local.close()
         if remote is not None:
             remote.close()
+        if s["local"] is not None and s["create"]:
+            try:
+                os.unlink(s["local"])  # Only this start created it.
+            except OSError:
+                pass
         raise
     _state = ExportState(store, size, max_request, protections, local, remote)
     if s["stats"]:
@@ -188,12 +208,21 @@ def config_complete():
 
 def _write_stats(path):
     data = json.dumps(_state.snapshot(), sort_keys=True)
-    temporary = path.with_name(path.name + ".tmp")
-    # nbdkit requires a module-level callback named open(); it shadows the
-    # builtin here, so file access must name builtins.open explicitly.
-    with builtins.open(temporary, "w") as output:
-        output.write(data)
-    os.replace(temporary, path)
+    # mkstemp creates with O_EXCL under a random name, so a planted symlink
+    # cannot redirect the write; os.replace renames over the final path
+    # without following a symlink there. (The module-level open() callback
+    # shadows the builtin, which is another reason not to use open() here.)
+    fd, temporary = tempfile.mkstemp(dir=path.parent, prefix=path.name + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as output:
+            output.write(data)
+        os.replace(temporary, path)
+    except BaseException:
+        try:
+            os.unlink(temporary)
+        except OSError:
+            pass
+        raise
 
 
 def _stats_loop(path):
@@ -256,7 +285,9 @@ def is_rotational(handle):
 
 
 def block_size(handle):
-    return (1, 4096, handle.state.max_request)
+    # Minimum 4096: smaller writes need a read-modify-write of the O_DIRECT
+    # copy, which is not atomic against power loss. Swap uses whole pages.
+    return (4096, 4096, handle.state.max_request)
 
 
 def _chunks(offset, length, maximum):

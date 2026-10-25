@@ -134,6 +134,22 @@ class DirectFileTests(unittest.TestCase):
             store.flush()
         store.close()
 
+    def test_ram_filesystem_rejected(self):
+        # Swap pages in tmpfs would live in RAM and invalidate the experiment.
+        if not Path("/dev/shm").is_dir():
+            self.skipTest("no tmpfs at /dev/shm")
+        with self.assertRaisesRegex(ValueError, "tmpfs"):
+            DirectFileStorage.temporary("/dev/shm", 4096)
+        with self.assertRaisesRegex(ValueError, "tmpfs"):
+            DirectFileStorage.open_named(Path("/dev/shm") / f"mb-{os.getpid()}", 4096, create=True)
+        self.assertFalse((Path("/dev/shm") / f"mb-{os.getpid()}").exists())
+
+    def test_failed_create_leaves_no_file(self):
+        with patch("os.posix_fallocate", side_effect=OSError(28, "no space")):
+            with self.assertRaises(OSError):
+                DirectFileStorage.open_named(self.path, 4096, create=True)
+        self.assertFalse(self.path.exists())
+
     def test_argument_validation(self):
         for size in (0, 4095, -4096, 4096.0):
             with self.assertRaises(ValueError):

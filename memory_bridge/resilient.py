@@ -121,9 +121,27 @@ class ResilientStorage:
         self._clear_valid()
         self._remote_errors += 1
 
+    def _begin(self):
+        begin = getattr(self._remote, "begin_request", None)
+        if self._remote_enabled and callable(begin):
+            begin()
+
+    def _end(self):
+        end = getattr(self._remote, "end_request", None)
+        if self._remote is not None and callable(end):
+            end()
+
     def read(self, offset: int, count: int) -> bytes:
         with self._lock:
             self._validate(offset, count)
+            self._begin()
+            try:
+                return self._read_locked(offset, count)
+            finally:
+                self._end()
+
+    def _read_locked(self, offset, count):
+        if True:
             result = []
             end = offset + count
             while offset < end:
@@ -173,6 +191,14 @@ class ResilientStorage:
             raise ValueError("Writes require immutable bytes")
         with self._lock:
             self._validate(offset, len(data))
+            self._begin()
+            try:
+                self._write_locked(offset, data)
+            finally:
+                self._end()
+
+    def _write_locked(self, offset, data):
+        if True:
             blocks = range(offset // self._block_size,
                            (offset + len(data) - 1) // self._block_size + 1)
             # Revoke cache validity before an authoritative write that may fail
@@ -246,8 +272,13 @@ class ResilientStorage:
             self._flushes += 1
 
     def snapshot(self) -> dict:
-        """Aggregate state only; never expose contents or backing identities."""
-        with self._lock:
+        """Aggregate state only; never expose contents or backing identities.
+
+        Deliberately lock-free: telemetry must never wait behind swap I/O,
+        and a telemetry thread holding the lock while allocating could
+        deadlock under memory pressure. Counters may be momentarily skewed.
+        """
+        if True:
             return {"closed": self._closed, "failed": self._failed,
                     "remote_enabled": self._remote_enabled,
                     "cached_blocks": self._valid_count,

@@ -83,6 +83,16 @@ def parse(argv=None):
     if (not stat.S_ISDIR(parent.st_mode) or parent.st_uid != os.getuid()
             or stat.S_IMODE(parent.st_mode) & 0o077):
         parser.error("--socket must be inside a private directory (mode 0700, owned by you)")
+    if args.lock_memory:
+        # mlockall charges the whole address space (~300-400 MiB for nbdkit
+        # with Python) to RLIMIT_MEMLOCK unless the process has CAP_IPC_LOCK.
+        import resource
+        from .memlock import has_cap_ipc_lock
+        soft, _ = resource.getrlimit(resource.RLIMIT_MEMLOCK)
+        if soft != resource.RLIM_INFINITY and not has_cap_ipc_lock():
+            parser.error("Memory locking needs CAP_IPC_LOCK or an unlimited memlock limit "
+                         "(ulimit -l unlimited); pass --no-lock-memory only for tests, "
+                         "never for swap")
     if args.key is not None:
         args.key = private_key(args.key)
     for name in ("socket", "local", "local_dir", "stats"):

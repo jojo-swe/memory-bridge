@@ -43,13 +43,16 @@ def serve(sock):
         lock_memory = config.get("lock_memory", False)
         if type(lock_memory) is not bool:
             raise ValueError("Invalid lock_memory")
-        import nbd
+        protections = 0
         if lock_memory:
             # Serving swap: keep this worker resident before any connection
             # exists. Failure aborts the handshake instead of running unlocked.
             from .memlock import lock_all_memory, set_io_flusher
             lock_all_memory()
-            set_io_flusher()
+            protections |= 1
+            if set_io_flusher():
+                protections |= 2
+        import nbd
         handle = nbd.NBD()
         handle.set_tls(nbd.TLS_REQUIRE)
         handle.set_tls_username("borrower")
@@ -57,7 +60,8 @@ def serve(sock):
         handle.connect_tcp(config["host"], str(config["port"]))
         if handle.get_size() != size:
             raise ValueError("Unexpected export size")
-        _send(sock, b"K")
+        # Report which protections were obtained; the parent publishes them.
+        _send(sock, b"K" + bytes([protections]))
         while True:
             request = _frame(sock, maximum + 1 + _IO.size)
             operation = request[:1]

@@ -18,6 +18,7 @@ Guarantees, stated narrowly:
   or process death. It is therefore not restartable; named mode is.
 """
 
+import ctypes
 import errno
 import fcntl
 import mmap
@@ -30,6 +31,26 @@ from .core import BackendError
 
 _ALIGN = 4096
 _MAX_SIZE = 1 << 46  # 64 TiB; a sanity bound, far above any experiment.
+_RAM_FILESYSTEMS = {0x01021994: "tmpfs", 0x858458F6: "ramfs", 0x01021997: "hugetlbfs"}
+
+
+class _StatFs(ctypes.Structure):
+    _fields_ = [("f_type", ctypes.c_long)] + [("_pad", ctypes.c_byte * 112)]
+
+
+def _reject_ram_filesystem(fd):
+    """A local copy in RAM would silently defeat the purpose of swap.
+
+    statvfs cannot identify the filesystem type, so use fstatfs(2) directly.
+    """
+    libc = ctypes.CDLL(None, use_errno=True)
+    buffer = _StatFs()
+    if libc.fstatfs(fd, ctypes.byref(buffer)) != 0:
+        error = ctypes.get_errno()
+        raise OSError(error, "fstatfs failed: " + os.strerror(error))
+    name = _RAM_FILESYSTEMS.get(buffer.f_type & 0xFFFFFFFF)
+    if name is not None:
+        raise ValueError(f"Local backing must be on disk, not {name}")
 
 
 class DirectFileStorage:
@@ -81,6 +102,7 @@ class DirectFileStorage:
         flags = os.O_RDWR | os.O_DIRECT | os.O_TMPFILE | os.O_CLOEXEC
         fd = os.open(Path(directory), flags, 0o600)
         try:
+            _reject_ram_filesystem(fd)
             cls._lock_descriptor(fd)
             # Reserve every block now: running out of space during swap-out
             # would turn a capacity problem into data loss.
@@ -101,8 +123,10 @@ class DirectFileStorage:
         flags = os.O_RDWR | os.O_DIRECT | os.O_CLOEXEC | os.O_NOFOLLOW
         if create:
             flags |= os.O_CREAT | os.O_EXCL
-        fd = os.open(Path(path).absolute(), flags, 0o600)
+        path = Path(path).absolute()
+        fd = os.open(path, flags, 0o600)
         try:
+            _reject_ram_filesystem(fd)
             info = os.fstat(fd)
             if (not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600
                     or info.st_uid != os.getuid() or info.st_nlink != 1):
@@ -116,6 +140,13 @@ class DirectFileStorage:
                 raise ValueError("Existing backing has a different size")
         except BaseException:
             os.close(fd)
+            if create:
+                # Remove only what this call created; a retry must not hit
+                # FileExistsError because of a half-initialised file.
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
             raise
         return cls(fd, size, max_request_bytes, temporary=False)
 

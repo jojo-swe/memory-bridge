@@ -20,6 +20,11 @@ ROOT = Path(__file__).resolve().parent.parent
 NBD_AVAILABLE = bool(shutil.which("nbdkit") and importlib.util.find_spec("nbd"))
 
 
+def _memlock_unlimited():
+    import resource
+    return resource.getrlimit(resource.RLIMIT_MEMLOCK)[0] == resource.RLIM_INFINITY
+
+
 def _fake_nbdkit():
     module = types.ModuleType("nbdkit")
     module.THREAD_MODEL_SERIALIZE_ALL_REQUESTS = 0
@@ -60,7 +65,8 @@ class PluginCallbackTests(unittest.TestCase):
         self.assertEqual(self.plugin.can_fua(handle), 1)  # Emulated: write + flush.
         for name in ("can_multi_conn", "can_trim", "can_zero"):
             self.assertFalse(getattr(self.plugin, name)(handle), name)
-        self.assertEqual(self.plugin.block_size(handle), (1, 4096, 1024 * 1024))
+        # Minimum 4096: sub-page writes would need non-atomic read-modify-write.
+        self.assertEqual(self.plugin.block_size(handle), (4096, 4096, 1024 * 1024))
         self.assertEqual(self.plugin.get_size(handle), 1024 * 1024)
 
     def test_exclusive_connection_and_sequential_reconnect(self):
@@ -207,11 +213,11 @@ class BlockExportIntegrationTests(unittest.TestCase):
                     stream.close()
         self.directory.cleanup()
 
-    def start_export(self, name, *extra, expect_socket=True):
+    def start_export(self, name, *extra, expect_socket=True, lock=False):
         sock = self.run_dir / f"{name}.sock"
         process = subprocess.Popen(
             [sys.executable, "-m", "memory_bridge", "export", "--socket", str(sock),
-             "--no-lock-memory", *extra],
+             *([] if lock else ["--no-lock-memory"]), *extra],
             cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         self.processes.append(process)
         if expect_socket:
@@ -224,7 +230,7 @@ class BlockExportIntegrationTests(unittest.TestCase):
                 time.sleep(0.05)
         return process, sock
 
-    def start_donor(self, size_mib=4):
+    def start_donor(self, size_mib=4, delay_ms=0):
         key = self.base / "session.psk"
         subprocess.run([sys.executable, "bridge.py", "keygen", str(key)], cwd=ROOT,
                        check=True, capture_output=True)
@@ -232,7 +238,8 @@ class BlockExportIntegrationTests(unittest.TestCase):
             probe.bind(("127.0.0.1", 0))
             port = probe.getsockname()[1]
         donor = subprocess.Popen([sys.executable, "bridge.py", "donor", "--key", str(key),
-                                  "--size-mib", str(size_mib), "--port", str(port)],
+                                  "--size-mib", str(size_mib), "--port", str(port),
+                                  *(["--lab-delay-ms", str(delay_ms)] if delay_ms else [])],
                                  cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.processes.append(donor)
         deadline = time.monotonic() + 15
@@ -282,9 +289,11 @@ class BlockExportIntegrationTests(unittest.TestCase):
         self.assertFalse(handle.can_multi_conn())
         self.assertFalse(handle.can_trim())
         data = os.urandom(1024 * 1024)
-        handle.pwrite(data, 12345, nbd.CMD_FLAG_FUA)
+        handle.pwrite(data, 12288, nbd.CMD_FLAG_FUA)
         handle.flush()
-        self.assertEqual(bytes(handle.pread(len(data), 12345)), data)
+        self.assertEqual(bytes(handle.pread(len(data), 12288)), data)
+        with self.assertRaises(nbd.Error):
+            handle.pwrite(b"x" * 4096, 1)  # Unaligned: rejected, never RMW.
         with self.assertRaises(nbd.Error):
             self.connect(sock)  # A second concurrent client would corrupt swap.
         report = self.wait_stats(stats, lambda r: r["requests"]["flush"] >= 2)
@@ -315,8 +324,13 @@ class BlockExportIntegrationTests(unittest.TestCase):
         self.assertLess(elapsed, 5)
         report = self.wait_stats(stats, lambda r: not r["store"]["remote_enabled"])
         self.assertGreaterEqual(report["store"]["remote_errors"], 1)
-        handle.pwrite(b"after-fault", 4096)
-        self.assertEqual(bytes(handle.pread(11, 4096)), b"after-fault")
+        # Prove the source switched: remote bytes stop growing, local grow.
+        after = self.wait_stats(stats, lambda r: r["store"]["local_read_bytes"] >= len(data))
+        self.assertEqual(after["store"]["remote_read_bytes"], report["store"]["remote_read_bytes"])
+        # Writes keep working while the donor is still frozen.
+        block = b"after-fault".ljust(4096, b"\0")
+        handle.pwrite(block, 4096)
+        self.assertEqual(bytes(handle.pread(4096, 4096)), block)
         handle.shutdown()
 
     def test_named_copy_survives_export_kill_and_is_exclusive(self):
@@ -326,7 +340,7 @@ class BlockExportIntegrationTests(unittest.TestCase):
         handle = self.connect(sock)
         pattern = bytes(range(256)) * 64
         for index in range(32):
-            handle.pwrite(pattern, index * 65536 + 7)
+            handle.pwrite(pattern, index * 65536 + 4096)
         # A second export on the same copy must refuse to start.
         rival, _ = self.start_export("n2", "--size-mib", "4", "--local", str(local),
                                      expect_socket=False)
@@ -337,7 +351,43 @@ class BlockExportIntegrationTests(unittest.TestCase):
         _, sock = self.start_export("n1", "--size-mib", "4", "--local", str(local))
         handle = self.connect(sock)
         for index in range(32):
-            self.assertEqual(bytes(handle.pread(len(pattern), index * 65536 + 7)), pattern)
+            self.assertEqual(bytes(handle.pread(len(pattern), index * 65536 + 4096)), pattern)
+        handle.shutdown()
+
+    def test_slow_donor_cannot_stall_one_request_beyond_timeout(self):
+        # Review finding: per-chunk deadlines let a slow (not frozen) donor hold
+        # a request for N x timeout. One request now shares one deadline.
+        donor, key, port = self.start_donor(delay_ms=300)
+        stats = self.base / "stats.json"
+        _, sock = self.start_export("slow", "--size-mib", "4", "--local-dir", str(self.base),
+                                    "--donor-host", "127.0.0.1", "--donor-port", str(port),
+                                    "--key", str(key), "--timeout", "1", "--stats", str(stats),
+                                    "--transfer-kib", "64")
+        handle = self.connect(sock)
+        data = os.urandom(1024 * 1024)
+        started = time.monotonic()
+        handle.pwrite(data, 0)  # 16 remote chunks x 0.3 s would be 4.8 s.
+        elapsed = time.monotonic() - started
+        self.assertLess(elapsed, 3)
+        self.assertEqual(bytes(handle.pread(len(data), 0)), data)
+        report = self.wait_stats(stats, lambda r: not r["store"]["remote_enabled"])
+        self.assertGreaterEqual(report["store"]["remote_errors"], 1)
+        handle.shutdown()
+
+    @unittest.skipUnless(os.geteuid() == 0 or _memlock_unlimited(),
+                         "locking the export needs CAP_IPC_LOCK or unlimited memlock")
+    def test_memory_locking_mode_starts_and_reports_protections(self):
+        donor, key, port = self.start_donor()
+        stats = self.base / "stats.json"
+        _, sock = self.start_export("lock", "--size-mib", "4", "--local-dir", str(self.base),
+                                    "--donor-host", "127.0.0.1", "--donor-port", str(port),
+                                    "--key", str(key), "--stats", str(stats), lock=True)
+        handle = self.connect(sock)
+        handle.pwrite(os.urandom(65536), 0)
+        report = self.wait_stats(stats, lambda r: r["requests"]["write"] >= 1)
+        self.assertTrue(report["protections"]["mlockall"])
+        self.assertTrue(report["worker_protections"]["mlockall"])
+        self.assertGreater(report["export_memory_kib"]["VmLck"], 0)
         handle.shutdown()
 
 

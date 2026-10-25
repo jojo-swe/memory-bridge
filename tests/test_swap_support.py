@@ -118,7 +118,10 @@ class WorkerLaunchTests(unittest.TestCase):
             request = b"H" + json.dumps({"host": "h", "port": 1, "key": "/k", "size": 4096,
                                          "maximum": 4096, "lock_memory": "yes"}).encode()
             parent.sendall(_HEADER.pack(len(request)) + request)
-            nbd_worker.serve(child)
+            # A truthy non-boolean must be rejected before any locking.
+            with patch("memory_bridge.memlock.lock_all_memory",
+                       side_effect=AssertionError("locked despite invalid flag")):
+                nbd_worker.serve(child)
             length, = _HEADER.unpack(parent.recv(4))
             self.assertEqual(parent.recv(length), b"E")
 
