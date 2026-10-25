@@ -29,14 +29,14 @@ Paketet kan även installeras med `python3 -m pip install .`; då finns kommando
 projektmappen enligt instruktionerna nedan och installeras inte som CLI.
 
 Läs [arkitekturen](docs/ARKITEKTUR.md) för tillstånd, säkerhetsgränser och vad
-som återstår. GitHub Actions-konfiguration medföljer men har inte körts på GitHub.
+som återstår. Alla 40 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40181213266), inklusive NBD/TLS på loopback.
 
 Arbetsnamn, inte kontrollerat varumärke. En första byggsten för att låna RAM
 från en annan Linux-dator på ett betrott hemnätverk.
 
 **Detta är ett experimentellt RAM-baserat NBD-lager och en testklient. Det ökar
-inte automatiskt datorns RAM och aktiverar inte swap.** Fullständig anslutning
-via NBD/TLS återstår att köra i en miljö med beroendena installerade.
+inte automatiskt datorns RAM och aktiverar inte swap.** NBD/TLS på loopback är verifierat i CI; test på två fysiska datorer och
+swap-integration återstår.
 
 ## Vad som finns
 

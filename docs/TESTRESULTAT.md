@@ -18,13 +18,21 @@ config/local.toml` kördes framgångsrikt. Demon använder simulerade minneslage
 och visar isolation, spärrad trasig session och fortsatt funktion för en
 opåverkad låntagare. Den mäter inte nätverksprestanda eller minnesbesparing.
 
-Ej verifierat: verklig NBD/TLS-anslutning, två fysiska datorer, swap-integration,
+Ej verifierat: två fysiska datorer, swap-integration,
 SSD-jämförelse, produktionssäkerhet och prestandavinst. NBD-paketen saknas här.
-Fyra integrationstester och GitHub Actions-workflow medföljer; workflow har
-inte körts på GitHub. NAS:en behövs inte för kärntester eller lokal demo.
+Fyra integrationstester kördes senare framgångsrikt i GitHub Actions (se nedan). NAS:en behövs inte för kärntester eller lokal demo.
 
 Ingen disk, swapkonfiguration eller brandvägg har ändrats av prototypen.
 
 Regressioner i 0.2.1: skrivskydd i adaptern, immutabel kvotbokföring,
 entropifel och tokenkollision före allokering, samt avvisning av symlänkar,
 FIFO-filer och för stora nyckelfiler. Alla sju nya tester passerar.
+
+## GitHub Actions — verifierad körning
+
+[Run 40181213266](https://github.com/jojo-swe/memory-bridge/actions/runs/40181213266)
+på commit `d8647192d7fbf7306cfa48cb32fdde044433c89d`: **40 av 40 tester godkända, inga överhoppade.**
+
+Ubuntu 24.04, nbdkit 1.36.3, libnbd 1.20.0. Inkluderar riktig TLS-PSK/NBD
+på loopback, dataåterläsning, nekad återanslutning, fel nyckel, nekad
+okrypterad anslutning och givarprocess som dödas under sessionen.
