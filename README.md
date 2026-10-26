@@ -1,4 +1,4 @@
-# Memory Bridge — ramverk 0.10.0
+# Memory Bridge — ramverk 0.11.0
 
 ## Hela labbet med ett kommando
 
@@ -322,9 +322,26 @@ python3 -m venv --system-site-packages .venv
 
 På Ubuntu behövs `python3-venv` för miljön. `--system-site-packages` gör
 Ubuntu-paketets libnbd-bindning tillgänglig; NBD-systempaketen krävs fortfarande.
-Övriga kommandon är `compare`, `benchmark`, `recover`, `donor` och `keygen`.
+Övriga kommandon är `compare`, `benchmark`, `recover`, `donor`, `keygen`,
+`block-export`, `swap-lab` och `pressure-workload`.
 Använd `memory-bridge KOMMANDO --help`. Befintliga skript i repots rot fungerar
 som kompatibilitetsingångar. Paketet installerar ingen tjänst automatiskt.
+
+## Blockexport och swap-experiment i 0.11
+
+Låntagarens lager (lokal kopia + verifierad fjärrcache) kan nu exponeras som
+en fil i ett FUSE-filsystem, `memory-bridge block-export`, som en loop-enhet
+kan göra till swap. `memory-bridge swap-lab` kör ett reproducerbart experiment
+i en **disponibel VM**: samma RAM-budget (cgroup), disk, program och seed för
+lokal swap, FUSE-vägen utan givare, Memory Bridge med TLS/NBD-givare och
+referenser utan swap, med rotation av körordning, injicerade givarfel och
+rådata som JSON. Fjärrspeglingen kan nu vara asynkron (write-behind) utan att
+ett block någonsin läses från cachen före bekräftelse och verifiering.
+
+Design och acceptanskriterier skrevs före mätning i
+[SWAP-EXPERIMENT.md](docs/SWAP-EXPERIMENT.md); resultat och slutsatser finns i
+[SWAP-RESULTAT.md](docs/SWAP-RESULTAT.md). Kör aldrig swap-labbet på en dator
+du bryr dig om; se [körguiden](docs/KORGUIDE.md).
 
 ## Återuppta utvecklingen
 

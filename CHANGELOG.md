@@ -1,3 +1,12 @@
+## 0.11.0
+
+- Add a FUSE block export (`block-export`) exposing the borrower stack as one file for loop/swap use, with direct_io, mlockall, EIO mapping and a stats file.
+- Add an O_DIRECT temporary backing so local disk cost is never hidden by the page cache.
+- Add bounded write-behind mirroring to ResilientStorage; cache validity is still gated on the verified remote ACK.
+- Add a verified anonymous-memory pressure workload and a disposable-VM swap lab with cgroup limits, rotated order, fault injection and raw JSON.
+- Respect CAP_IPC_LOCK in memlock pre-checks; make tests independent of running as root.
+- Document the swap experiment design, acceptance criteria and measured results.
+
 ## 0.10.0
 
 - Package all experiment commands and the NBD plugin.

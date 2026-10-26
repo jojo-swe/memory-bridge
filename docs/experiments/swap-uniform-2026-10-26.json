@@ -1,0 +1,579 @@
+{
+  "environment": {
+    "timestamp": "2026-10-26T19:53:14.664899+00:00",
+    "kernel": "6.18.44-fc-v153",
+    "python": "3.12.3",
+    "executable": "/usr/bin/python3.12",
+    "nbdkit": "nbdkit 1.36.3",
+    "fusermount": "fusermount3 version: 3.14.0",
+    "losetup": "losetup from util-linux 2.39.3",
+    "meminfo": {
+      "MemTotal": "8220244 kB",
+      "MemFree": "7539852 kB",
+      "MemAvailable": "7588540 kB"
+    },
+    "cpus": 2,
+    "directory_mount": "/dev/vda ext4",
+    "active_swap_before": "Filename\t\t\t\tType\t\tSize\t\tUsed\t\tPriority\n",
+    "command": [
+      "/home/claude/memory-bridge/memory_bridge/swap_lab.py",
+      "--disposable-vm",
+      "--arms",
+      "noswap,local-swap,fuse-local,bridge,bridge-sync,more-ram",
+      "--repetitions",
+      "3",
+      "--ram-mib",
+      "256",
+      "--dataset-mib",
+      "512",
+      "--swap-mib",
+      "768",
+      "--rounds",
+      "2",
+      "--pattern",
+      "uniform",
+      "--directory",
+      "/var/tmp/swaplab",
+      "--output",
+      "docs/experiments/swap-uniform-2026-10-26.json"
+    ]
+  },
+  "parameters": {
+    "disposable_vm": true,
+    "arms": [
+      "noswap",
+      "local-swap",
+      "fuse-local",
+      "bridge",
+      "bridge-sync",
+      "more-ram"
+    ],
+    "repetitions": 3,
+    "ram_mib": 256,
+    "dataset_mib": 512,
+    "swap_mib": 768,
+    "rounds": 2,
+    "pattern": "uniform",
+    "seed": 42,
+    "deadline": 0,
+    "run_timeout": 1800,
+    "io_timeout": 2.0,
+    "transfer_kib": 64,
+    "directory": "/var/tmp/swaplab",
+    "disk_latency_ms": 0.0,
+    "fault": null,
+    "fault_delay": 2.0,
+    "output": "docs/experiments/swap-uniform-2026-10-26.json"
+  },
+  "runs": [
+    {
+      "arm": "noswap",
+      "repetition": 1,
+      "order": [
+        "noswap",
+        "local-swap",
+        "fuse-local",
+        "bridge",
+        "bridge-sync",
+        "more-ram"
+      ],
+      "swap_device": null,
+      "losetup": null,
+      "proc_swaps": "Filename\t\t\t\tType\t\tSize\t\tUsed\t\tPriority\n",
+      "returncode": -9,
+      "timed_out": false,
+      "wall_seconds": 1.5568475289999242,
+      "workload": null,
+      "workload_stderr": [],
+      "before": {
+        "vmstat": {
+          "pswpin": 384279,
+          "pswpout": 503728,
+          "pgmajfault": 211717
+        },
+        "psi": {
+          "some_total_us": 19293771,
+          "full_total_us": 9192229
+        },
+        "cgroup": {
+          "limit_bytes": 268435456,
+          "memsw_limit_bytes": 268435456,
+          "max_usage_bytes": 0,
+          "memsw_max_usage_bytes": 0,
+          "failcnt": 0,
+          "memsw_failcnt": 0,
+          "oom_kill": 0,
+          "stat_swap_bytes": 0,
+          "stat_rss_bytes": 0,
+          "stat_pgmajfault": 0
+        },
+        "export": null
+      },
+      "after": {
+        "vmstat": {
+          "pswpin": 384279,
+          "pswpout": 503728,
+          "pgmajfault": 211717
+        },
+        "psi": {
+          "some_total_us": 19294240,
+          "full_total_us": 9192560
+        },
+        "cgroup": {
+          "limit_bytes": 268435456,
+          "memsw_limit_bytes": 268435456,
+          "max_usage_bytes": 268435456,
+          "memsw_max_usage_bytes": 268435456,
+          "failcnt": 0,
+          "memsw_failcnt": 0,
+          "oom_kill": 1,
+          "stat_swap_bytes": 0,
+          "stat_rss_bytes": 0,
+          "stat_pgmajfault": 0
+        },
+        "export": null
+      },
+      "swap_io": {
+        "pswpin": 0,
+        "pswpout": 0,
+        "pgmajfault": 0
+      },
+      "psi_delta_us": {
+        "some_total_us": 469,
+        "full_total_us": 331
+      },
+      "oom_killed": true,
+      "memory": {
+        "workload_peak_rss_kib": 271568,
+        "bridge_peak_by_process_kib": {},
+        "bridge_peak_concurrent_rss_kib": 271568,
+        "monitor_samples": 4
+      },
+      "fault": null,
+      "dmesg": [
+        "[Mon Oct 26 20:43:25 2026] Adding 196604k swap on /dev/loop0.  Priority:100 extents:1 across:196604k SS",
+        "[Mon Oct 26 20:44:27 2026] loop0: detected capacity change from 0 to 393216",
+        "[Mon Oct 26 20:44:27 2026] Adding 196604k swap on /dev/loop0.  Priority:100 extents:1 across:196604k SS",
+        "[Mon Oct 26 20:51:38 2026] loop0: detected capacity change from 0 to 393216",
+        "[Mon Oct 26 20:51:38 2026] Adding 196604k swap on /dev/loop0.  Priority:100 extents:1 across:196604k SS",
+        "[Mon Oct 26 20:52:08 2026] loop0: detected capacity change from 0 to 393216",
+        "[Mon Oct 26 20:52:08 2026] Adding 196604k swap on /dev/loop0.  Priority:100 extents:1 across:196604k SS",
+        "[Mon Oct 26 20:52:35 2026] loop0: detected capacity change from 0 to 393216",
+        "[Mon Oct 26 20:52:35 2026] Adding 196604k swap on /dev/loop0.  Priority:100 extents:1 across:196604k SS",
+        "[Mon Oct 26 20:53:16 2026] python3.12 invoked oom-killer: gfp_mask=0xcc0(GFP_KERNEL), order=0, oom_score_adj=0",
+        "[Mon Oct 26 20:53:16 2026]  oom_kill_process.cold+0x8/0x90",
+        "[Mon Oct 26 20:53:16 2026] memory+swap: usage 262144kB, limit 262144kB, failcnt 0",
+        "[Mon Oct 26 20:53:16 2026] Memory cgroup stats for /memory-bridge-swap-lab-1822-0-noswap:",
+        "[Mon Oct 26 20:53:16 2026] swap 0",
+        "[Mon Oct 26 20:53:16 2026] swapcached 0",
+        "[Mon Oct 26 20:53:16 2026] total_swap 0",
+        "[Mon Oct 26 20:53:16 2026] total_swapcached 0",
+        "[Mon Oct 26 20:53:16 2026] [  pid  ]   uid  tgid total_vm      rss rss_anon rss_file rss_shmem pgtables_bytes swapents oom_score_adj name",
+        "[Mon Oct 26 20:53:16 2026] oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=/,mems_allowed=0,oom_memcg=/memory-bridge-swap-lab-1822-0-noswap,task_memcg=/memory-bridge-swap-lab-1822-0-noswap,task=python3.12,pid=1828,uid=0",
+        "[Mon Oct 26 20:53:16 2026] Memory cgroup out of memory: Killed process 1828 (python3.12) total-vm:548788kB, anon-rss:7680kB, file-rss:10540kB, shmem-rss:253056kB, UID:0 pgtables:584kB oom_score_adj:0"
+      ],
+      "arm_notes": [],
+      "export_final": null,
+      "export_errors": null
+    },
+    {
+      "arm": "local-swap",
+      "repetition": 1,
+      "order": [
+        "noswap",
+        "local-swap",
+        "fuse-local",
+        "bridge",
+        "bridge-sync",
+        "more-ram"
+      ],
+      "swap_device": "/dev/loop0",
+      "losetup": "NAME       SIZELIMIT OFFSET AUTOCLEAR RO BACK-FILE                                                       DIO LOG-SEC\n/dev/loop0         0      0         0  0 /var/tmp/swaplab/memory-bridge-swap-lab-n9hf80vf/local-swap.img   1     512\n",
+      "proc_swaps": "Filename\t\t\t\tType\t\tSize\t\tUsed\t\tPriority\n/dev/loop0                              partition\t786428\t\t0\t\t100\n",
+      "returncode": 0,
+      "timed_out": false,
+      "wall_seconds": 30.573043417999997,
+      "workload": {
+        "dataset_mib": 512,
+        "pages": 131072,
+        "pattern": "uniform",
+        "seed": 42,
+        "rounds_requested": 2,
+        "phases": {
+          "fill": {
+            "count": 131072,
+            "total_seconds": 1.0563214039311788,
+            "mean_seconds": 8.059092742394858e-06,
+            "median_seconds": 3.529999958118424e-06,
+            "p95_seconds": 6.345999963741633e-06,
+            "p99_seconds": 2.533200017751369e-05,
+            "max_seconds": 0.02034571700005472,
+            "retained_samples": 131072,
+            "sample_stride": 1,
+            "wall_seconds": 2.8808487629999036
+          },
+          "sweep": {
+            "count": 131072,
+            "total_seconds": 4.086650350956461,
+            "mean_seconds": 3.1178667838718116e-05,
+            "median_seconds": 3.4380000215605833e-06,
+            "p95_seconds": 0.00015054000004965928,
+            "p99_seconds": 0.0002295459999004379,
+            "max_seconds": 0.08595315900015521,
+            "retained_samples": 131072,
+            "sample_stride": 1,
+            "wall_seconds": 6.24590937500011
+          },
+          "random_reads": {
+            "count": 229376,
+            "total_seconds": 14.05074982398196,
+            "mean_seconds": 6.12564079240285e-05,
+            "median_seconds": 6.422999990718381e-05,
+            "p95_seconds": 0.00013740300005338213,
+            "p99_seconds": 0.00024586700010331697,
+            "max_seconds": 0.009113459999980478,
+            "retained_samples": 229376,
+            "sample_stride": 1
+          },
+          "random_writes": {
+            "count": 32768,
+            "total_seconds": 1.9681367619884895,
+            "mean_seconds": 6.006276739466826e-05,
+            "median_seconds": 6.561800000781659e-05,
+            "p95_seconds": 0.00013595899986285076,
+            "p99_seconds": 0.0002334620000965515,
+            "max_seconds": 0.004419771000129913,
+            "retained_samples": 32768,
+            "sample_stride": 1
+          },
+          "random": {
+            "wall_seconds": 21.169477930000085,
+            "touches": 262144
+          }
+        },
+        "verification_errors": 0,
+        "rounds_completed": 2,
+        "deadline_hit": false,
+        "total_wall_seconds": 30.326562849000084
+      },
+      "workload_stderr": [
+        "{\"phase\": \"fill\", \"wall_seconds\": 2.8818167469999025, \"errors\": 0}",
+        "{\"phase\": \"sweep\", \"wall_seconds\": 6.246853980999958, \"errors\": 0}{\"phase\": \"random\", \"wall_seconds\": 21.170203135000065, \"errors\": 0}"
+      ],
+      "before": {
+        "vmstat": {
+          "pswpin": 384279,
+          "pswpout": 503728,
+          "pgmajfault": 211717
+        },
+        "psi": {
+          "some_total_us": 19294240,
+          "full_total_us": 9192560
+        },
+        "cgroup": {
+          "limit_bytes": 268435456,
+          "memsw_limit_bytes": 1073741824,
+          "max_usage_bytes": 0,
+          "memsw_max_usage_bytes": 0,
+          "failcnt": 0,
+          "memsw_failcnt": 0,
+          "oom_kill": 0,
+          "stat_swap_bytes": 0,
+          "stat_rss_bytes": 0,
+          "stat_pgmajfault": 0
+        },
+        "export": null
+      },
+      "after": {
+        "vmstat": {
+          "pswpin": 657570,
+          "pswpout": 848848,
+          "pgmajfault": 366864
+        },
+        "psi": {
+          "some_total_us": 21249638,
+          "full_total_us": 11095558
+        },
+        "cgroup": {
+          "limit_bytes": 268435456,
+          "memsw_limit_bytes": 1073741824,
+          "max_usage_bytes": 268435456,
+          "memsw_max_usage_bytes": 560037888,
+          "failcnt": 344602,
+          "memsw_failcnt": 0,
+          "oom_kill": 0,
+          "stat_swap_bytes": 0,
+          "stat_rss_bytes": 0,
+          "stat_pgmajfault": 155088
+        },
+        "export": null
+      },
+      "swap_io": {
+        "pswpin": 273291,
+        "pswpout": 345120,
+        "pgmajfault": 155147
+      },
+      "psi_delta_us": {
+        "some_total_us": 1955398,
+        "full_total_us": 1902998
+      },
+      "oom_killed": false,
+      "memory": {
+        "workload_peak_rss_kib": 271248,
+        "bridge_peak_by_process_kib": {},
+        "bridge_peak_concurrent_rss_kib": 270592,
+        "monitor_samples": 62
+      },
+      "fault": null,
+      "dmesg": [
+        "[Mon Oct 26 20:44:27 2026] Adding 196604k swap on /dev/loop0.  Priority:100 extents:1 across:196604k SS",
+        "[Mon Oct 26 20:51:38 2026] loop0: detected capacity change from 0 to 393216",
+        "[Mon Oct 26 20:51:38 2026] Adding 196604k swap on /dev/loop0.  Priority:100 extents:1 across:196604k SS",
+        "[Mon Oct 26 20:52:08 2026] loop0: detected capacity change from 0 to 393216",
+        "[Mon Oct 26 20:52:08 2026] Adding 196604k swap on /dev/loop0.  Priority:100 extents:1 across:196604k SS",
+        "[Mon Oct 26 20:52:35 2026] loop0: detected capacity change from 0 to 393216",
+        "[Mon Oct 26 20:52:35 2026] Adding 196604k swap on /dev/loop0.  Priority:100 extents:1 across:196604k SS",
+        "[Mon Oct 26 20:53:16 2026] python3.12 invoked oom-killer: gfp_mask=0xcc0(GFP_KERNEL), order=0, oom_score_adj=0",
+        "[Mon Oct 26 20:53:16 2026]  oom_kill_process.cold+0x8/0x90",
+        "[Mon Oct 26 20:53:16 2026] memory+swap: usage 262144kB, limit 262144kB, failcnt 0",
+        "[Mon Oct 26 20:53:16 2026] Memory cgroup stats for /memory-bridge-swap-lab-1822-0-noswap:",
+        "[Mon Oct 26 20:53:16 2026] swap 0",
+        "[Mon Oct 26 20:53:16 2026] swapcached 0",
+        "[Mon Oct 26 20:53:16 2026] total_swap 0",
+        "[Mon Oct 26 20:53:16 2026] total_swapcached 0",
+        "[Mon Oct 26 20:53:16 2026] [  pid  ]   uid  tgid total_vm      rss rss_anon rss_file rss_shmem pgtables_bytes swapents oom_score_adj name",
+        "[Mon Oct 26 20:53:16 2026] oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=/,mems_allowed=0,oom_memcg=/memory-bridge-swap-lab-1822-0-noswap,task_memcg=/memory-bridge-swap-lab-1822-0-noswap,task=python3.12,pid=1828,uid=0",
+        "[Mon Oct 26 20:53:16 2026] Memory cgroup out of memory: Killed process 1828 (python3.12) total-vm:548788kB, anon-rss:7680kB, file-rss:10540kB, shmem-rss:253056kB, UID:0 pgtables:584kB oom_score_adj:0",
+        "[Mon Oct 26 20:53:16 2026] loop0: detected capacity change from 0 to 1572864",
+        "[Mon Oct 26 20:53:16 2026] Adding 786428k swap on /dev/loop0.  Priority:100 extents:1 across:786428k "
+      ],
+      "arm_notes": [
+        {
+          "swapoff_seconds": 0.01321160499992402
+        }
+      ],
+      "export_final": null,
+      "export_errors": null
+    },
+    {
+      "arm": "fuse-local",
+      "repetition": 1,
+      "order": [
+        "noswap",
+        "local-swap",
+        "fuse-local",
+        "bridge",
+        "bridge-sync",
+        "more-ram"
+      ],
+      "swap_device": "/dev/loop0",
+      "losetup": "NAME       SIZELIMIT OFFSET AUTOCLEAR RO BACK-FILE                                                                DIO LOG-SEC\n/dev/loop0         0      0         0  0 /var/tmp/swaplab/memory-bridge-swap-lab-n9hf80vf/mount-fuse-local/volume   1     512\n",
+      "proc_swaps": "Filename\t\t\t\tType\t\tSize\t\tUsed\t\tPriority\n/dev/loop0                              partition\t786428\t\t0\t\t100\n",
+      "returncode": 0,
+      "timed_out": false,
+      "wall_seconds": 90.64120030599997,
+      "workload": {
+        "dataset_mib": 512,
+        "pages": 131072,
+        "pattern": "uniform",
+        "seed": 42,
+        "rounds_requested": 2,
+        "phases": {
+          "fill": {
+            "count": 131072,
+            "total_seconds": 1.9748211309820363,
+            "mean_seconds": 1.5066689536911287e-05,
+            "median_seconds": 3.541000069162692e-06,
+            "p95_seconds": 7.089000064297579e-06,
+            "p99_seconds": 4.118100014238735e-05,
+            "max_seconds": 0.02459394900006373,
+            "retained_samples": 131072,
+            "sample_stride": 1,
+            "wall_seconds": 3.9910859179999534
+          },
+          "sweep": {
+            "count": 131072,
+            "total_seconds": 9.79467649899425,
+            "mean_seconds": 7.472745131678962e-05,
+            "median_seconds": 3.389999847058789e-06,
+            "p95_seconds": 0.0003494239999781712,
+            "p99_seconds": 0.0005223620000833762,
+            "max_seconds": 0.15699844400000984,
+            "retained_samples": 131072,
+            "sample_stride": 1,
+            "wall_seconds": 12.270217314000092
+          },
+          "random_reads": {
+            "count": 229376,
+            "total_seconds": 58.50427660001105,
+            "mean_seconds": 0.0002550584045410638,
+            "median_seconds": 0.0001958370000920695,
+            "p95_seconds": 0.00036770399992747116,
+            "p99_seconds": 0.0007715679998909764,
+            "max_seconds": 0.07485001500003818,
+            "retained_samples": 229376,
+            "sample_stride": 1
+          },
+          "random_writes": {
+            "count": 32768,
+            "total_seconds": 8.312800246995039,
+            "mean_seconds": 0.0002536865309751904,
+            "median_seconds": 0.00019510500010255782,
+            "p95_seconds": 0.00036477300000115065,
+            "p99_seconds": 0.000770461999991312,
+            "max_seconds": 0.09668229599992628,
+            "retained_samples": 32768,
+            "sample_stride": 1
+          },
+          "random": {
+            "wall_seconds": 73.78649696599996,
+            "touches": 262144
+          }
+        },
+        "verification_errors": 0,
+        "rounds_completed": 2,
+        "deadline_hit": false,
+        "total_wall_seconds": 90.15784850399996
+      },
+      "workload_stderr": [
+        "{\"phase\": \"fill\", \"wall_seconds\": 3.994414635999874, \"errors\": 0}",
+        "{\"phase\": \"random\", \"wall_seconds\": 73.78852892300006, \"errors\": 0}"
+      ],
+      "before": {
+        "vmstat": {
+          "pswpin": 657570,
+          "pswpout": 848848,
+          "pgmajfault": 366864
+        },
+        "psi": {
+          "some_total_us": 21249638,
+          "full_total_us": 11095558
+        },
+        "cgroup": {
+          "limit_bytes": 268435456,
+          "memsw_limit_bytes": 1073741824,
+          "max_usage_bytes": 0,
+          "memsw_max_usage_bytes": 0,
+          "failcnt": 0,
+          "memsw_failcnt": 0,
+          "oom_kill": 0,
+          "stat_swap_bytes": 0,
+          "stat_rss_bytes": 0,
+          "stat_pgmajfault": 0
+        },
+        "export": {
+          "export": {
+            "reads": 52,
+            "writes": 1,
+            "flushes": 3,
+            "errors": 0,
+            "read_bytes": 1335296,
+            "write_bytes": 4096,
+            "max_read_seconds": 0.0013059919999705016,
+            "max_write_seconds": 0.0001852759999110276,
+            "total_read_seconds": 0.0024686909996489703,
+            "total_write_seconds": 0.0001852759999110276
+          },
+          "capacity_bytes": 805306368,
+          "storage": {
+            "backing": "direct",
+            "capacity_bytes": 805306368,
+            "emulated_latency_seconds": 0.0
+          }
+        }
+      },
+      "after": {
+        "vmstat": {
+          "pswpin": 928992,
+          "pswpout": 1194707,
+          "pgmajfault": 520332
+        },
+        "psi": {
+          "some_total_us": 38287743,
+          "full_total_us": 18818420
+        },
+        "cgroup": {
+          "limit_bytes": 268435456,
+          "memsw_limit_bytes": 1073741824,
+          "max_usage_bytes": 268435456,
+          "memsw_max_usage_bytes": 560041984,
+          "failcnt": 343183,
+          "memsw_failcnt": 0,
+          "oom_kill": 0,
+          "stat_swap_bytes": 0,
+          "stat_rss_bytes": 0,
+          "stat_pgmajfault": 153436
+        },
+        "export": {
+          "export": {
+            "reads": 155246,
+            "writes": 137770,
+            "flushes": 3,
+            "errors": 0,
+            "read_bytes": 1113079808,
+            "write_bytes": 1416642560,
+            "max_read_seconds": 0.02666267099994002,
+            "max_write_seconds": 0.0420938350000597,
+            "total_read_seconds": 16.930798247068424,
+            "total_write_seconds": 15.450262009961307
+          },
+          "capacity_bytes": 805306368,
+          "storage": {
+            "backing": "direct",
+            "capacity_bytes": 805306368,
+            "emulated_latency_seconds": 0.0
+          }
+        }
+      },
+      "swap_io": {
+        "pswpin": 271422,
+        "pswpout": 345859,
+        "pgmajfault": 153468
+      },
+      "psi_delta_us": {
+        "some_total_us": 17038105,
+        "full_total_us": 7722862
+      },
+      "oom_killed": false,
+      "memory": {
+        "workload_peak_rss_kib": 271272,
+        "bridge_peak_by_process_kib": {
+          "export": 73256
+        },
+        "bridge_peak_concurrent_rss_kib": 342212,
+        "monitor_samples": 182
+      },
+      "fault": null,
+      "dmesg": [
+        "[Mon Oct 26 20:51:38 2026] Adding 196604k swap on /dev/loop0.  Priority:100 extents:1 across:196604k SS",
+        "[Mon Oct 26 20:52:08 2026] loop0: detected capacity change from 0 to 393216",
+        "[Mon Oct 26 20:52:08 2026] Adding 196604k swap on /dev/loop0.  Priority:100 extents:1 across:196604k SS",
+        "[Mon Oct 26 20:52:35 2026] loop0: detected capacity change from 0 to 393216",
+        "[Mon Oct 26 20:52:35 2026] Adding 196604k swap on /dev/loop0.  Priority:100 extents:1 across:196604k SS",
+        "[Mon Oct 26 20:53:16 2026] python3.12 invoked oom-killer: gfp_mask=0xcc0(GFP_KERNEL), order=0, oom_score_adj=0",
+        "[Mon Oct 26 20:53:16 2026]  oom_kill_process.cold+0x8/0x90",
+        "[Mon Oct 26 20:53:16 2026] memory+swap: usage 262144kB, limit 262144kB, failcnt 0",
+        "[Mon Oct 26 20:53:16 2026] Memory cgroup stats for /memory-bridge-swap-lab-1822-0-noswap:",
+        "[Mon Oct 26 20:53:16 2026] swap 0",
+        "[Mon Oct 26 20:53:16 2026] swapcached 0",
+        "[Mon Oct 26 20:53:16 2026] total_swap 0",
+        "[Mon Oct 26 20:53:16 2026] total_swapcached 0",
+        "[Mon Oct 26 20:53:16 2026] [  pid  ]   uid  tgid total_vm      rss rss_anon rss_file rss_shmem pgtables_bytes swapents oom_score_adj name",
+        "[Mon Oct 26 20:53:16 2026] oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=/,mems_allowed=0,oom_memcg=/memory-bridge-swap-lab-1822-0-noswap,task_memcg=/memory-bridge-swap-lab-1822-0-noswap,task=python3.12,pid=1828,uid=0",
+        "[Mon Oct 26 20:53:16 2026] Memory cgroup out of memory: Killed process 1828 (python3.12) total-vm:548788kB, anon-rss:7680kB, file-rss:10540kB, shmem-rss:253056kB, UID:0 pgtables:584kB oom_score_adj:0",
+        "[Mon Oct 26 20:53:16 2026] loop0: detected capacity change from 0 to 1572864",
+        "[Mon Oct 26 20:53:16 2026] Adding 786428k swap on /dev/loop0.  Priority:100 extents:1 across:786428k ",
+        "[Mon Oct 26 20:53:47 2026] loop0: detected capacity change from 0 to 1572864",
+        "[Mon Oct 26 20:53:47 2026] Adding 786428k swap on /dev/loop0.  Priority:100 extents:1 across:786428k SS"
+      ],
+      "arm_notes": [
+        {
+          "swapoff_seconds": 0.018207458000006227
+        }
+      ],
+      "export_final": "{\"export\": {\"reads\": 155246, \"writes\": 137770, \"flushes\": 3, \"errors\": 0, \"read_bytes\": 1113079808, \"write_bytes\": 1416642560, \"max_read_seconds\": 0.02666267099994002, \"max_write_seconds\": 0.0420938350000597, \"total_read_seconds\": 16.930798247068424, \"total_write_seconds\": 15.450262009961307}}\n",
+      "export_errors": ""
+    }
+  ],
+  "cleanup_failures": []
+}
