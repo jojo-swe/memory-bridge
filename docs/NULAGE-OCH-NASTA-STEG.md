@@ -11,7 +11,7 @@ swapfil under samma minnesbrist, med 0 datafel. Flaskhalsen är
 användarrymdsvägen per sida (FUSE → NBD → Python): redan utan givare (P)
 är den 4,5–4,9× långsammare än kärnans swap. 1 ms nätfördröjning gör den
 ytterligare 5× långsammare. När adaptern själv står under samma minnestryck
-låser systemet sig (deadlock, 2 av 2). Se
+hänger systemet sig (2 av 2; tolkat som rekursiv swap-deadlock). Se
 [SWAP-EXPERIMENT-RESULTAT.md](SWAP-EXPERIMENT-RESULTAT.md).
 
 ## Vad som finns och har verifierats
@@ -35,7 +35,7 @@ GUI, parkoppling eller fler plattformar.
 
 ## Var kostnaden ligger (mätt)
 
-1. Per-sida-kostnad i användarrymden: ≈ 90 s CPU per 60 s arbetslast (R),
+1. Per-sida-kostnad i användarrymden: ≈ 90 s CPU per ≈ 100 s W2-körning (R),
    1 175 s CPU per xz-jobb. Python per 4 KiB/128 KiB-begäran, fyra kopior
    per skrivning, TLS, SHA-256, två processgränser (nbdfuse, worker).
 2. Lokal kopia krävs alltid: disken avlastas aldrig, så swap-trafiken mot
