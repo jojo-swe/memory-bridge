@@ -6,19 +6,21 @@ Sparat 2026-10-26. Utgångspunkt: version 0.11.0 på branchen
 ## Slutsats
 
 Beslutsgrinden från 0.10 är nu prövad med verkligt kernel-swap under
-kontrollerad minnesbrist. **Nyttan uteblev**: med lokal swap på SSD-klassad
-lagring är Memory Bridge 5,7× långsammare än vanlig lokal swap och 1,75×
-långsammare än samma kodväg utan givare, med liten spridning över upprepningar
-och körordningar. Korrekthet och feltolerans höll: 0 verifieringsfel i alla
+kontrollerad minnesbrist. **Nyttan uteblev**: med lokal swap på lagring som
+läser 4 KiB på 50–75 µs (SSD- eller värdcache-klass) är Memory Bridge 5,7×
+långsammare än vanlig lokal swap och 1,75× långsammare än samma kodväg utan
+givare, med icke överlappande intervall över upprepningar och körordningar. Korrekthet och feltolerans höll: 0 verifieringsfel i alla
 körningar, fallback inom en I/O-deadline vid fryst/död givare och tappad
 anslutning, ingen tyst återanslutning. Detaljer och rådata:
 [SWAP-RESULTAT.md](SWAP-RESULTAT.md), kriterier: [SWAP-EXPERIMENT.md](SWAP-EXPERIMENT.md).
 
-Fjärrcachen lönar sig först när en lokal 4 KiB-slumpläsning kostar mer än
-≈ 0,4 ms (HDD, SD-kort, eMMC); då var bridge 1,6–2,4× snabbare än samma väg
-utan givare i emulerade körningar. Det är en smalare målgrupp än "vanliga
-konsumenter med för lite RAM", och över ett riktigt LAN blir fjärrvägen bara
-dyrare än på loopback.
+Med emulerad sömn på +1 ms / +5 ms per lokal I/O var bridge 1,6× / 2,4×
+snabbare än samma Python/FUSE-väg utan givare (n = 2, loopback, inte jämfört
+med kernel-swap på vanlig fil). Tolkning: fjärrcachen kan löna sig först när
+en lokal 4 KiB-slumpläsning kostar mer än ≈ 0,3–0,4 ms (HDD, SD-kort, eMMC),
+vilket är en smalare målgrupp än "vanliga konsumenter med för lite RAM"; över
+ett riktigt LAN blir fjärrvägen dessutom dyrare än på loopback. Detta är inte
+mätt på riktig långsam lagring.
 
 ## Vad som finns och har verifierats i 0.11
 
@@ -26,7 +28,7 @@ dyrare än på loopback.
   `EIO` vid lagerfel, `stats.json`; loop+`mkswap`+`swapon` ovanpå fungerar.
 - `DirectFileStorage` (O_DIRECT) så att sidcachen inte döljer diskkostnad.
 - Write-behind-spegling i `ResilientStorage` med ACK-gated giltighet, budget,
-  och lokala läsningar medan en batch sänds (−16 % total tid).
+  och lokala läsningar medan en batch sänds (−16 % i random-fasen).
 - `pressure-workload` (sidverifierad), `swap-lab` (disponibel VM, cgroup v1,
   roterad ordning, felinjektion, städning) och `swap-report` (tabeller).
 - Klientomstart efter SIGKILL på beständig bakända, via FUSE-filen.
@@ -38,11 +40,12 @@ swapvägen), strömavbrott, omstart av daemonen under aktivt swap.
 
 ## Kostnadsbild att utgå från
 
-Per cachad 4 KiB-läsning på loopback: nbdkit+TLS ≈ 100 µs (golv även med
-nbdkits C-plugin), projektets Python-plugin +22 µs, processhoppet till
-NBD-arbetaren +150 µs (varav ≈ 87 µs är ren schemaläggning av två
-Python-processer), SHA-256 och lagerlogik +70 µs. Diskläsning: ≈ 47 µs.
-FUSE+loop+Python kostar dessutom ≈ 3,3× i sig mot kernel-swap på en vanlig fil.
+Per cachad 4 KiB-läsning på loopback (`docs/experiments/microbench-latency.txt`):
+nbdkit+TLS ≈ 100 µs (golv även med nbdkits C-plugin), projektets Python-plugin
++30 µs, processhoppet till NBD-arbetaren +100 µs (ett rent socketpair-eko
+mellan två Python-processer kostar 76 µs), SHA-256 och lagerlogik +5–70 µs
+beroende på körning. Diskläsning: ≈ 47–56 µs. FUSE+loop+Python kostar dessutom
+≈ 3,3× i sig mot kernel-swap på en vanlig fil.
 
 ## Vägval
 
@@ -59,10 +62,11 @@ FUSE+loop+Python kostar dessutom ≈ 3,3× i sig mot kernel-swap på en vanlig f
 ## Kvarstående konkreta hinder
 
 - Python i swapvägen kan inte göras deadlocksäker under global minnesbrist.
-- Givaren behöver 768 MiB låst RAM + ≈ 50 MiB; låntagarsidan ≈ 180 MiB i
+- Givaren behöver 768 MiB låst RAM + ≈ 24 MiB; låntagarsidan ≈ 180 MiB i
   Python-processer utöver full lokal kopia på disk.
-- Write-behind-budgeten (16 MiB) blev full under swap-ut-toppar; 30 % av
-  blocken lämnades olagrade. Större budget kostar låst RAM hos låntagaren.
+- Write-behind-budgeten (16 MiB) blev full under swap-ut-toppar; 12–14 % av
+  blockskrivningarna lämnades olagrade. Större budget kostar låst RAM hos
+  låntagaren.
 - Experimentkärnan saknade NBD-klient och ublk; FUSE+loop är en labbväg.
 
 ## Fortsättningsinstruktion

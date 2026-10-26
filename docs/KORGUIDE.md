@@ -133,4 +133,6 @@ slumpmässiga fasen har startat, och `--disk-latency-ms` lägger emulerad
 disklatens på FUSE-armarna (endast för att hitta brytpunkten mot lokal disk;
 kombinera inte med `local-swap`). Rådata skrivs som JSON efter varje delkörning.
 Allt städas före rapporten; kontrollera ändå `/proc/swaps`, `losetup -l` och
-`/sys/fs/cgroup/memory` efteråt. Resultat och tolkning: [SWAP-RESULTAT.md](SWAP-RESULTAT.md).
+`/sys/fs/cgroup/memory` efteråt. `memory-bridge swap-report fil1.json fil2.json`
+sammanställer en eller flera rapporter till Markdown-tabeller. Resultat och
+tolkning: [SWAP-RESULTAT.md](SWAP-RESULTAT.md).

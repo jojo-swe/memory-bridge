@@ -395,6 +395,7 @@ class Monitor(threading.Thread):
         self.samples = 0
         self.peak_concurrent_rss_kib = 0
         self.peak_by_process = {}
+        self.locked_by_process = {}  # VmLck peaks: the donor's locked budget, mlockall'd daemons
 
     def run(self):
         while not self.stop.is_set():
@@ -407,6 +408,8 @@ class Monitor(threading.Thread):
                     total += memory.get("vmrss_kib", 0)
                 self.peak_by_process[name] = max(self.peak_by_process.get(name, 0),
                                                  memory.get("vmhwm_kib", 0))
+                self.locked_by_process[name] = max(self.locked_by_process.get(name, 0),
+                                                   memory.get("vmlck_kib", 0))
             self.peak_concurrent_rss_kib = max(self.peak_concurrent_rss_kib, total)
             self.samples += 1
             self.stop.wait(self.interval)
@@ -494,6 +497,7 @@ def run_workload(args, cgroup, arm, fault):
                          "bridge_peak_by_process_kib": {k: v for k, v in monitor.peak_by_process.items()
                                                         if k != "workload"},
                          "bridge_peak_concurrent_rss_kib": monitor.peak_concurrent_rss_kib,
+                         "locked_peak_by_process_kib": monitor.locked_by_process,
                          "monitor_samples": monitor.samples},
               "fault": fault_record}
     return result

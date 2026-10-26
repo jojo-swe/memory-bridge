@@ -49,18 +49,19 @@ Kärnans `drain()` stoppar nya allokeringar men bevarar aktiva sessioner;
 det är ännu inget fjärrkommando.
 
 Paketet kan även installeras med `python3 -m pip install .`; då finns kommandot
-`memory-bridge` för demo, doctor och validate-config. NBD-skripten körs från
-projektmappen enligt instruktionerna nedan och installeras inte som CLI.
+`memory-bridge` med alla labbkommandon (se avsnittet om 0.10 nedan).
 
 Läs [arkitekturen](docs/ARKITEKTUR.md) för tillstånd, säkerhetsgränser och vad
-som återstår. Alla 149 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40195407580), inklusive NBD/TLS på loopback.
+som återstår. Alla 177 tester passerar i [GitHub Actions](https://github.com/jojo-swe/memory-bridge/actions/runs/40400729827), inklusive NBD/TLS på loopback och FUSE-montering.
 
 Arbetsnamn, inte kontrollerat varumärke. En första byggsten för att låna RAM
 från en annan Linux-dator på ett betrott hemnätverk.
 
 **Detta är ett experimentellt RAM-baserat NBD-lager och en testklient. Det ökar
-inte automatiskt datorns RAM och aktiverar inte swap.** NBD/TLS på loopback är verifierat i CI; test på två fysiska datorer och
-swap-integration återstår.
+inte automatiskt datorns RAM och aktiverar inget swap på din dator.** NBD/TLS
+på loopback är verifierat i CI; swap-integration är testad enbart i en
+disponibel VM (0.11) och visade ingen nytta mot lokal swap. Test på två fysiska
+datorer återstår.
 
 ## Vad som finns
 
@@ -323,7 +324,7 @@ python3 -m venv --system-site-packages .venv
 På Ubuntu behövs `python3-venv` för miljön. `--system-site-packages` gör
 Ubuntu-paketets libnbd-bindning tillgänglig; NBD-systempaketen krävs fortfarande.
 Övriga kommandon är `compare`, `benchmark`, `recover`, `donor`, `keygen`,
-`block-export`, `swap-lab` och `pressure-workload`.
+`block-export`, `swap-lab`, `pressure-workload` och `swap-report`.
 Använd `memory-bridge KOMMANDO --help`. Befintliga skript i repots rot fungerar
 som kompatibilitetsingångar. Paketet installerar ingen tjänst automatiskt.
 
