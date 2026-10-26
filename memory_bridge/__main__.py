@@ -55,7 +55,7 @@ def main():
     installed_commands = {
         "lab": "lab_cli", "compare": "compare_cli", "benchmark": "benchmark_cli",
         "recover": "recovery_cli", "checkpoint": "checkpoint_cli",
-        "donor": "launcher", "keygen": "launcher",
+        "donor": "launcher", "keygen": "launcher", "export": "export_cli",
     }
     if len(sys.argv) > 1 and sys.argv[1] in installed_commands:
         command = sys.argv[1]
@@ -63,7 +63,7 @@ def main():
         sys.argv = [f"memory-bridge {command}", *forwarded]
         return import_module("." + installed_commands[command], __package__).main()
     parser = argparse.ArgumentParser(description=__doc__,
-        epilog="Installed commands: lab, compare, benchmark, recover, checkpoint, donor, keygen (use COMMAND --help)")
+        epilog="Installed commands: lab, compare, benchmark, recover, checkpoint, donor, keygen, export (use COMMAND --help)")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("demo")
     commands.add_parser("doctor")

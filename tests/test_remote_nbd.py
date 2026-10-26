@@ -155,7 +155,7 @@ class WorkerTests(unittest.TestCase):
             try:
                 send(b'H' + json.dumps(dict(host='localhost', port=10809,
                      key='/key', size=8192, maximum=4096)).encode())
-                self.assertEqual(self.receive_frame(parent), b'K')
+                self.assertEqual(self.receive_frame(parent)[:1], b'K')
                 send(b'W' + struct.pack('!QQ', 3, 5) + b'hello')
                 self.assertEqual(self.receive_frame(parent), b'K')
                 send(b'R' + struct.pack('!QQ', 3, 5))

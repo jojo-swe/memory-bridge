@@ -23,10 +23,21 @@ class LauncherTests(unittest.TestCase):
     def test_memlock_failure_precedes_key_access(self):
         with patch("sys.argv", ["bridge.py", "donor", "--key", "unused", "--size-mib", "1"]), \
              patch("resource.getrlimit", return_value=(4096, 4096)), \
+             patch("memory_bridge.memlock.has_cap_ipc_lock", return_value=False), \
              patch("bridge.private_key") as key, redirect_stderr(io.StringIO()):
             with self.assertRaises(SystemExit):
                 main()
             key.assert_not_called()
+
+    def test_cap_ipc_lock_exempts_memlock_precheck(self):
+        # Linux does not apply RLIMIT_MEMLOCK to CAP_IPC_LOCK holders; the
+        # precheck must not reject them before the real mlock decides.
+        with patch("sys.argv", ["bridge.py", "donor", "--key", "unused", "--size-mib", "1"]), \
+             patch("resource.getrlimit", return_value=(4096, 4096)), \
+             patch("memory_bridge.memlock.has_cap_ipc_lock", return_value=True), \
+             patch("bridge.private_key", side_effect=ValueError("reached key check")):
+            with self.assertRaisesRegex(ValueError, "reached key check"):
+                main()
 
     def test_invalid_nbd_config_precedes_key_access(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -48,6 +59,26 @@ class LauncherTests(unittest.TestCase):
         self.assertIn("size_mib=2", arguments)
         self.assertIn("--tls=require", arguments)
         self.assertIn("config_file=" + str(Path("config/local.toml").resolve()), arguments)
+
+    def test_lab_delay_wraps_plugin_without_changing_security_flags(self):
+        with patch("sys.argv", ["bridge.py", "donor", "--key", "unused", "--size-mib", "1",
+                                "--lab-delay-ms", "3"]), \
+             patch("bridge.private_key", return_value=Path("/tmp/unused.psk")), \
+             patch("memory_bridge.memlock.has_cap_ipc_lock", return_value=True), \
+             patch("bridge.shutil.which", return_value="/usr/bin/nbdkit"), \
+             patch("bridge.os.execv") as execute, redirect_stdout(io.StringIO()):
+            main()
+        arguments = execute.call_args.args[1]
+        self.assertIn("--tls=require", arguments)
+        self.assertLess(arguments.index("--filter=delay"), arguments.index("python"))
+        self.assertIn("delay-read=3ms", arguments)
+        self.assertIn("delay-write=3ms", arguments)
+        with patch("sys.argv", ["bridge.py", "donor", "--key", "unused", "--size-mib", "1",
+                                "--lab-delay-ms", "5000"]), \
+             patch("bridge.private_key") as key, redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                main()
+            key.assert_not_called()
 
     def test_oversized_export_fails_before_reading_key(self):
         with patch("sys.argv", ["bridge.py", "donor", "--key", "unused",

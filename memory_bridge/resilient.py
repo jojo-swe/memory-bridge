@@ -2,8 +2,10 @@
 
 The remote backend must enforce its own deadlines; RemoteNBDStorage does so
 per transport operation. Local SHA256 digests verify remote block contents
-before exposure. This wrapper provides no crash durability; the local backend
-and process must be trusted. Backings must be exclusively owned after creation.
+before exposure. Durability is exactly the local backend's: flush() forwards
+to local.flush() when the backend has one; the donor's RAM is volatile and
+never counts toward durability. The local backend and process must be trusted.
+Backings must be exclusively owned after creation.
 """
 
 import threading
@@ -56,6 +58,13 @@ class ResilientStorage:
         self._failed = False
         self._close_failed = False
         self._remote_errors = 0
+        # Byte counters show where data actually came from; they let an
+        # experiment prove that the remote path served reads before a fault
+        # and that fallback happened afterwards.
+        self._remote_read_bytes = 0
+        self._local_read_bytes = 0
+        self._remote_write_bytes = 0
+        self._flushes = 0
         self._lock = threading.RLock()
 
     def _is_valid(self, block):
@@ -96,7 +105,9 @@ class ResilientStorage:
 
     def _local_read(self, offset, count):
         try:
-            return self._read(self._local, offset, count)
+            data = self._read(self._local, offset, count)
+            self._local_read_bytes += count
+            return data
         except BaseException as error:
             self._failed = True
             self._remote_enabled = False
@@ -110,9 +121,27 @@ class ResilientStorage:
         self._clear_valid()
         self._remote_errors += 1
 
+    def _begin(self):
+        begin = getattr(self._remote, "begin_request", None)
+        if self._remote_enabled and callable(begin):
+            begin()
+
+    def _end(self):
+        end = getattr(self._remote, "end_request", None)
+        if self._remote is not None and callable(end):
+            end()
+
     def read(self, offset: int, count: int) -> bytes:
         with self._lock:
             self._validate(offset, count)
+            self._begin()
+            try:
+                return self._read_locked(offset, count)
+            finally:
+                self._end()
+
+    def _read_locked(self, offset, count):
+        if True:
             result = []
             end = offset + count
             while offset < end:
@@ -145,6 +174,7 @@ class ResilientStorage:
                                 raise OSError("Remote block integrity failure")
                         # Expose no part of a batch until every block passes.
                         data = full[offset - start:stop - start]
+                        self._remote_read_bytes += length
                     except BaseException as error:
                         self._disable_remote()
                         if not isinstance(error, Exception):
@@ -161,6 +191,14 @@ class ResilientStorage:
             raise ValueError("Writes require immutable bytes")
         with self._lock:
             self._validate(offset, len(data))
+            self._begin()
+            try:
+                self._write_locked(offset, data)
+            finally:
+                self._end()
+
+    def _write_locked(self, offset, data):
+        if True:
             blocks = range(offset // self._block_size,
                            (offset + len(data) - 1) // self._block_size + 1)
             # Revoke cache validity before an authoritative write that may fail
@@ -195,6 +233,7 @@ class ResilientStorage:
                         if not isinstance(error, Exception):
                             raise
                         break
+                    self._remote_write_bytes += length
                     # A batch becomes eligible only after its remote ACK.
                     for block in range(start // self._block_size,
                                        (start + length) // self._block_size):
@@ -204,16 +243,53 @@ class ResilientStorage:
                         self._mark(block, True)
                     start += length
 
-    def snapshot(self) -> dict:
-        """Aggregate state only; never expose contents or backing identities."""
+    @property
+    def can_flush(self) -> bool:
+        return callable(getattr(self._local, "flush", None))
+
+    def flush(self) -> None:
+        """Make acknowledged writes as durable as the local backend allows.
+
+        A failed local flush invalidates the store: after fsync errors the OS
+        may already have discarded dirty data, so retrying could falsely
+        report durability. The remote cache is unaffected by flush semantics.
+        """
         with self._lock:
+            if self._closed or self._failed:
+                raise BackendError("Storage is closed or invalidated")
+            flush = getattr(self._local, "flush", None)
+            if not callable(flush):
+                raise BackendError("Local backend provides no durability flush")
+            try:
+                flush()
+            except BaseException as error:
+                self._failed = True
+                self._remote_enabled = False
+                self._clear_valid()
+                if not isinstance(error, Exception):
+                    raise
+                raise BackendError("Local flush failed; storage invalidated") from None
+            self._flushes += 1
+
+    def snapshot(self) -> dict:
+        """Aggregate state only; never expose contents or backing identities.
+
+        Deliberately lock-free: telemetry must never wait behind swap I/O,
+        and a telemetry thread holding the lock while allocating could
+        deadlock under memory pressure. Counters may be momentarily skewed.
+        """
+        if True:
             return {"closed": self._closed, "failed": self._failed,
                     "remote_enabled": self._remote_enabled,
                     "cached_blocks": self._valid_count,
                     "valid_bitmap_bytes": len(self._valid) if self._valid is not None else 0,
                     "integrity_bytes": len(self._digests) if self._digests is not None else 0,
                     "capacity_bytes": self._size,
-                    "remote_errors": self._remote_errors}
+                    "remote_errors": self._remote_errors,
+                    "remote_read_bytes": self._remote_read_bytes,
+                    "local_read_bytes": self._local_read_bytes,
+                    "remote_write_bytes": self._remote_write_bytes,
+                    "flushes": self._flushes}
 
     def close(self) -> None:
         with self._lock:

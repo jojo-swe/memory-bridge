@@ -1,4 +1,4 @@
-# Arkitektur och kontrakt — 0.8
+# Arkitektur och kontrakt — 0.11
 
 ## Moduler
 
@@ -167,3 +167,39 @@ till anroparen. Vid avvikelse används lokal kopia och all fjärrgiltighet
 avvecklas. Digestlagret är begränsat till 32 byte per block. TLS och
 integritetskontrollen döljer inte klartexten från givaren. Lokal lagring
 och låntagarprocessen är fortsatt betrodda.
+
+## Blockadapter i 0.11
+
+`direct_file.py` äger en O_DIRECT-descriptor (temporär O_TMPFILE eller
+namngiven fil) med exklusivt flock, en förallokerad justerad buffert och
+`flush()` = fdatasync. Ojusterade kanter löses med read-modify-write som
+inte är atomär vid strömavbrott; exporten annonserar därför minsta
+blockstorlek 4096. tmpfs/ramfs avvisas via fstatfs. Ett lokalt I/O-fel
+spärrar lagret permanent.
+
+`block_export.py` är en nbdkit-plugin (API v2) över `ResilientStorage`:
+alla begäranden går lokal-först med verifierad fjärrcache. Flush vidare-
+befordras bara till lokal kopia; FUA emuleras av nbdkit som write+flush;
+multi-conn, trim och zero-offload är avstängda. En klient i taget; en ny
+får ansluta efter att den förra stängt. `thread_model` är
+SERIALIZE_ALL_REQUESTS eftersom lagret serialiserar ändå. Statistik skrivs
+låsfritt och symlänksäkert (mkstemp + rename) av en separat tråd.
+
+`export_cli.py` startar nbdkit enbart på Unix-socket i en privat katalog,
+kräver CAP_IPC_LOCK eller obegränsad memlock när minneslåsning är på, och
+skickar en explicit tolk till NBD-workern (inbäddad nbdkit-Python
+rapporterar fel `sys.executable`).
+
+`memlock.py`: `mlockall(MCL_CURRENT|MCL_FUTURE|MCL_ONFAULT)` – utan
+ONFAULT förfaultas hela adressrymden (~250 MiB). `PR_SET_IO_FLUSHER`
+försöks och rapporteras. Inget av detta gör Python-vägen allokeringsfri;
+experimentet visade deadlock när adaptern delar cgroup med arbetslasten.
+
+`RemoteNBDStorage.begin_request()/end_request()` ger alla transportanrop
+inom en lagerbegäran en gemensam deadline, så att en långsam givare inte
+kan hålla en begäran N × timeout; `ResilientStorage` anropar dem.
+
+Topologi i experimentet: kärnans swap → loop (direct-io) → nbdfuse →
+Unix-socket → nbdkit/plugin → lokal O_DIRECT-fil och (via worker, TLS)
+givaren. Med `nbd`-modul ersätts loop+nbdfuse av `nbd-client`; den vägen
+är inte körd.

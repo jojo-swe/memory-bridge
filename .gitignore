@@ -15,3 +15,6 @@ dist/
 *.db-journal
 *.db-wal
 *.db-shm
+
+# Local session logs from the Recall plugin
+.recall/
