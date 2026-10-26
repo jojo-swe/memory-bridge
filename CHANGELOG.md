@@ -1,10 +1,3 @@
-## 0.10.0
-
-- Package all experiment commands and the NBD plugin.
-- Expose commands through the installed memory-bridge entry point.
-- Invoke worker modules without relying on checkout-relative scripts.
-- Preserve root script compatibility and test package-only execution.
-
 ## 0.11.0 – 2026-10-26
 
 - Låntagarens blockadapter `memory-bridge export`: nbdkit-plugin över
@@ -20,6 +13,13 @@
 - Swap-experiment i disponibel VM (`experiments/swap/`) med förregistrerade
   kriterier, felinjektion och rådata. Resultat: nytta ej visad; se
   docs/SWAP-EXPERIMENT-RESULTAT.md.
+
+## 0.10.0
+
+- Package all experiment commands and the NBD plugin.
+- Expose commands through the installed memory-bridge entry point.
+- Invoke worker modules without relying on checkout-relative scripts.
+- Preserve root script compatibility and test package-only execution.
 
 ## 0.9.0
 
