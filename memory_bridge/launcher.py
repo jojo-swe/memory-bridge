@@ -8,6 +8,7 @@ import secrets
 import shutil
 import stat
 from memory_bridge.config import load_limits, validate_nbd_limits
+from memory_bridge.storage import memlock_limit_applies
 
 
 def private_key(path):
@@ -77,7 +78,8 @@ def main():
     # the backend's mandatory mlock remains authoritative at allocation time.
     import resource
     soft_limit, _ = resource.getrlimit(resource.RLIMIT_MEMLOCK)
-    if soft_limit != resource.RLIM_INFINITY and args.size_mib * 1024 * 1024 > soft_limit:
+    if (memlock_limit_applies() and soft_limit != resource.RLIM_INFINITY
+            and args.size_mib * 1024 * 1024 > soft_limit):
         parser.error("Export exceeds current memlock limit; reduce size or configure the OS limit")
     key = private_key(args.key)
     executable = shutil.which("nbdkit")

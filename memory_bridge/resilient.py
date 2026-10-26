@@ -24,9 +24,11 @@ class ResilientStorage:
 
     def __init__(self, local: Storage, remote: Storage | None = None, *,
                  block_size: int = 4096, max_request_bytes: int = 1024 * 1024,
-                 transfer_bytes: int | None = None):
+                 transfer_bytes: int | None = None, write_behind_bytes: int = 0):
         if type(block_size) is not int or block_size <= 0:
             raise ValueError("Block size must be a positive integer")
+        if type(write_behind_bytes) is not int or write_behind_bytes < 0:
+            raise ValueError("Write-behind budget must be a non-negative integer")
         if type(max_request_bytes) is not int or max_request_bytes <= 0:
             raise ValueError("Request maximum must be a positive integer")
         if transfer_bytes is not None and (
@@ -57,6 +59,23 @@ class ResilientStorage:
         self._close_failed = False
         self._remote_errors = 0
         self._lock = threading.RLock()
+        # Write-behind mirroring (optional): the caller's write returns after
+        # the authoritative local write; a mirror thread copies whole blocks to
+        # the remote cache afterwards. A block becomes readable from the cache
+        # only after its remote ACK, exactly as in the synchronous path, so no
+        # unverified or stale remote content can ever be exposed.
+        self._write_behind = write_behind_bytes if remote is not None else 0
+        self._pending = {}       # block index -> full block bytes awaiting mirror
+        self._pending_bytes = 0
+        self._inflight = {}      # block index -> bytes being mirrored, None if superseded
+        self._mirror_dropped = 0  # blocks left local-only because the budget was full
+        self._stopping = False
+        self._condition = threading.Condition(self._lock)
+        self._mirror_thread = None
+        if self._write_behind:
+            self._mirror_thread = threading.Thread(target=self._mirror_loop,
+                                                   name="memory-bridge-mirror", daemon=True)
+            self._mirror_thread.start()
 
     def _is_valid(self, block):
         return self._valid is not None and bool(self._valid[block >> 3] & (1 << (block & 7)))
@@ -176,7 +195,9 @@ class ResilientStorage:
                 if not isinstance(error, Exception):
                     raise
                 raise BackendError("Local write failed; storage invalidated") from None
-            if self._remote_enabled:
+            if self._remote_enabled and self._write_behind:
+                self._queue_mirror(blocks, offset, data)
+            elif self._remote_enabled:
                 start = blocks.start * self._block_size
                 end = blocks.stop * self._block_size
                 while start < end:
@@ -204,6 +225,98 @@ class ResilientStorage:
                         self._mark(block, True)
                     start += length
 
+    def _queue_mirror(self, blocks, offset, data):
+        """Record the authoritative content of every touched block for mirroring."""
+        size = self._block_size
+        for block in blocks:
+            if block in self._inflight:
+                # A mirror of older content is in progress; its ACK must not
+                # mark the block valid any more.
+                self._inflight[block] = None
+            start = block * size
+            if start >= offset and start + size <= offset + len(data):
+                full = data[start - offset:start - offset + size]
+            else:
+                full = self._local_read(start, size)  # partial edge: read back
+            previous = self._pending.pop(block, None)
+            if previous is not None:
+                self._pending_bytes -= size
+            if self._pending_bytes + size > self._write_behind:
+                # Budget exhausted: the block simply stays local-only. Never
+                # block the caller (the kernel swap path) on the network.
+                self._mirror_dropped += 1
+                continue
+            self._pending[block] = full
+            self._pending_bytes += size
+        self._condition.notify()
+
+    def _take_batch(self):
+        """Pop one contiguous run of pending blocks, bounded by transfer size."""
+        first = min(self._pending)
+        batch = []
+        block = first
+        while block in self._pending and len(batch) * self._block_size < self._transfer_bytes:
+            content = self._pending.pop(block)
+            self._pending_bytes -= self._block_size
+            self._inflight[block] = content
+            batch.append((block, content))
+            block += 1
+        return batch
+
+    def _mirror_loop(self):
+        while True:
+            with self._condition:
+                while not self._pending and not self._stopping and self._remote_enabled:
+                    self._condition.wait()
+                if self._stopping or not self._remote_enabled:
+                    self._pending.clear()
+                    self._pending_bytes = 0
+                    return
+                batch = self._take_batch()
+            start = batch[0][0] * self._block_size
+            payload = b"".join(content for _, content in batch)
+            try:
+                # Outside the storage lock: reads keep being served locally
+                # while the remote write waits on its own deadline.
+                self._remote.write(start, payload)
+            except Exception:
+                with self._condition:
+                    self._disable_remote()
+                    self._pending.clear()
+                    self._pending_bytes = 0
+                    self._inflight.clear()
+                return
+            with self._condition:
+                for block, content in batch:
+                    if self._inflight.pop(block, None) is content and self._digests is not None:
+                        digest = hashlib.sha256(content).digest()
+                        self._digests[block * 32:(block + 1) * 32] = digest
+                        self._mark(block, True)
+
+    def flush(self) -> None:
+        """Forward a sync request to the authoritative local backing only.
+
+        The remote cache never participates in any durability guarantee, so a
+        flush must not wait for it. A local backend without flush() offers no
+        sync at all; callers must not advertise more than the backend gives.
+        """
+        with self._lock:
+            if self._closed or self._failed:
+                raise BackendError("Storage is closed or invalidated")
+            flush = getattr(self._local, "flush", None)
+            if flush is None:
+                return
+            try:
+                flush()
+            except BaseException as error:
+                # An uncertain sync is treated like a failed local write.
+                self._failed = True
+                self._remote_enabled = False
+                self._clear_valid()
+                if not isinstance(error, Exception):
+                    raise
+                raise BackendError("Local flush failed; storage invalidated") from None
+
     def snapshot(self) -> dict:
         """Aggregate state only; never expose contents or backing identities."""
         with self._lock:
@@ -213,7 +326,10 @@ class ResilientStorage:
                     "valid_bitmap_bytes": len(self._valid) if self._valid is not None else 0,
                     "integrity_bytes": len(self._digests) if self._digests is not None else 0,
                     "capacity_bytes": self._size,
-                    "remote_errors": self._remote_errors}
+                    "remote_errors": self._remote_errors,
+                    "write_behind_bytes": self._write_behind,
+                    "pending_mirror_blocks": len(self._pending),
+                    "mirror_dropped_blocks": self._mirror_dropped}
 
     def close(self) -> None:
         with self._lock:
@@ -221,6 +337,8 @@ class ResilientStorage:
                 self._closed = True
                 self._remote_enabled = False
                 self._clear_valid()
+                self._stopping = True
+                self._condition.notify_all()
                 cancellation = None
                 for storage in (self._local, self._remote):
                     if storage is not None:
@@ -234,6 +352,10 @@ class ResilientStorage:
                     raise cancellation
             if self._close_failed:
                 raise BackendError("Storage cleanup failed") from None
+        # Closing the remote fails any in-flight mirror write, so the thread
+        # exits promptly; join outside the lock it needs for that exit.
+        if self._mirror_thread is not None:
+            self._mirror_thread.join(timeout=5)
 
     def __enter__(self):
         return self

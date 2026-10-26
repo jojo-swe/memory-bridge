@@ -59,6 +59,13 @@ class TemporaryFileStorage:
                     raise OSError("Short local backing write")
                 remaining = remaining[written:]
 
+    def flush(self):
+        """Sync written data; this is still a temporary file, not durable storage."""
+        with self._lock:
+            if self._file.closed:
+                raise RuntimeError("Local backing is closed")
+            os.fdatasync(self._file.fileno())
+
     def close(self):
         with self._lock:
             self._file.close()

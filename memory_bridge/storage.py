@@ -4,6 +4,27 @@ import ctypes
 import mmap
 import threading
 
+_CAP_IPC_LOCK = 14
+
+
+def memlock_limit_applies():
+    """Whether RLIMIT_MEMLOCK bounds mlock for this process.
+
+    A process with CAP_IPC_LOCK (typically root) is not bounded by the limit,
+    so a launcher pre-check against the soft limit would wrongly refuse an
+    export that mlock would accept. The mandatory mlock at allocation time
+    remains the authoritative check either way.
+    """
+    try:
+        with open("/proc/self/status") as status:
+            for line in status:
+                if line.startswith("CapEff:"):
+                    return not int(line.split()[1], 16) >> _CAP_IPC_LOCK & 1
+    except (OSError, ValueError):
+        pass
+    return True
+
+
 class LockedMemory:
     """Allocate and pin the full budget before accepting a borrower.
 

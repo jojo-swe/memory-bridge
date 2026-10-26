@@ -20,6 +20,7 @@ import tempfile
 import time
 
 from memory_bridge.compare_cli import build_report, positive_seconds, run_mode
+from memory_bridge.storage import memlock_limit_applies
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -66,7 +67,7 @@ def main():
     if not shutil.which('nbdkit') or importlib.util.find_spec('nbd') is None:
         parser.error('Install nbdkit, nbdkit-plugin-python and python3-libnbd; use /usr/bin/python3')
     soft, _ = resource.getrlimit(resource.RLIMIT_MEMLOCK)
-    if soft != resource.RLIM_INFINITY and args.size_mib * 1024 * 1024 > soft:
+    if memlock_limit_applies() and soft != resource.RLIM_INFINITY and args.size_mib * 1024 * 1024 > soft:
         parser.error('Donor size exceeds current memlock limit; reduce --size-mib')
     args.host = '127.0.0.1'
     # Reserving a port then starting nbdkit has a small allocation race. A race
