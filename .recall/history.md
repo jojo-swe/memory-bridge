@@ -136,3 +136,209 @@ Read them there (those copies are read-only — copy a file elsewhere to modify 
   - `Bash: until grep -q "EXIT=" /var/tmp/swaplab/main.log; do sleep 5; done; cat /var/tmp/swaplab/main.log | tail -3`
 
 **Claude:** I'll wait for the experiment and the review agent to finish before continuing.
+
+**You:** Stop hook feedback:
+[~/.claude/stop-hook-git-check.sh]: There are uncommitted changes in the repository. Please commit and push these changes to the remote branch.
+  - `Bash: git add -A && git -c user.name="Claude" -c user.email="claude@anthropic.com" commit -q -m "docs: architecture, run guide, README, changelog and CI for block exp`
+
+**Claude:** The experiment is still running (repetition 1 of 3, bridge arm). I'll continue when the background run and the review agent report back.
+
+**You:** <task-notification>
+<task-id>bpoxy52da</task-id>
+<summary>Monitor event: "swap-lab main experiment progress"</summary>
+<event>[swap-lab] repetition 1 arm bridge-sync</event>
+</task-notification>
+
+**Claude:** Still running (bridge-sync, repetition 1). Waiting for the next events.
+
+**You:** Stop hook feedback:
+[~/.claude/stop-hook-git-check.sh]: There are uncommitted changes in the repository. Please commit and push these changes to the remote branch.
+  - `Bash: git status --short | head`
+
+**Claude:** The remaining changes are the in-progress experiment raw data (written after every sub-run) and the Recall session log; I'll commit them once the run has finished rather than mid-measurement.
+
+**You:** <task-notification>
+<task-id>bpoxy52da</task-id>
+<summary>Monitor event: "swap-lab main experiment progress"</summary>
+<event>[swap-lab] repetition 1 arm more-ram</event>
+</task-notification>
+
+**Claude:** Repetition 1 is almost complete. Still waiting on repetitions 2–3 and the review agent.
+
+**You:** Stop hook feedback:
+[~/.claude/stop-hook-git-check.sh]: There are uncommitted changes in the repository. Please commit and push these changes to the remote branch.
+
+**Claude:** Same in-progress files as before (raw data being appended during the run and the Recall log); they will be committed and pushed with the final results once the measurement finishes.
+
+**You:** <task-notification>
+<task-id>bpoxy52da</task-id>
+<summary>Monitor event: "swap-lab main experiment progress"</summary>
+<event>[swap-lab] repetition 2 arm local-swap</event>
+</task-notification>
+
+**Claude:** Repetition 2 has started. Waiting.
+
+**You:** Stop hook feedback:
+[~/.claude/stop-hook-git-check.sh]: There are uncommitted changes in the repository. Please commit and push these changes to the remote branch.
+
+**Claude:** Unchanged situation: the only uncommitted files are the raw-data JSON that the running experiment rewrites after each sub-run and the Recall log. Committing partial measurements mid-run would be misleading; they are committed and pushed once the run completes.
+
+**You:** <task-notification>
+<task-id>b5zqjxqzp</task-id>
+<tool-use-id>toolu_01TADSPJ6Ep9UG3K6uPPvRhv</tool-use-id>
+<output-file>/tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/tasks/b5zqjxqzp.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the main uniform-pattern experiment (3 repetitions, 6 arms)" completed (exit code 0)</summary>
+</task-notification>
+  - `Bash: cat /var/tmp/swaplab/main.log | tail -5; cd /home/claude/memory-bridge && python3 - <<'EOF' import json, statistics r = json.load(open("docs/experiments/swap-un`
+  - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("memory_bridge/swap_lab.py"); s = p.read_text() old = ''' self.mountpoint = self.workdir / f"mount-{self.nam`
+  - `Bash: mv docs/experiments/swap-uniform-2026-10-26.json docs/experiments/swap-uniform-part1.json && /usr/bin/python3.12 -m memory_bridge.swap_lab --disposable-vm --arm`
+  - `Bash: git add -A memory_bridge docs/experiments && git -c user.name="Claude" -c user.email="claude@anthropic.com" commit -q -m "fix(swap-lab): unique mountpoint per r`
+
+**Claude:** Part 2 of the uniform run is in progress (two more rotated repetitions). Waiting for it and the review agent.
+
+**You:** Stop hook feedback:
+[~/.claude/stop-hook-git-check.sh]: There are uncommitted changes in the repository. Please commit and push these changes to the remote branch.
+
+**Claude:** Only the Recall session log and the part-2 raw data (rewritten by the running experiment) are uncommitted; they are committed and pushed when the run completes.
+
+**You:** <task-notification>
+<task-id>a62893539c69c453b</task-id>
+<tool-use-id>toolu_011yAxDWVjqSKBzsM84rCJbZ</tool-use-id>
+<output-file>/tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/tasks/a62893539c69c453b.output</output-file>
+<status>completed</status>
+<summary>Agent "Review error handling and test assumptions" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>## Review: feature/swap-experiment-block-export
+
+Read `docs/SWAP-EXPERIMENT.md` and all listed files (plus `remote_nbd.py`, `nbd_worker.py`, `local_disk.py`, `storage.py`, `launcher.py` for context). No tests or commands were run beyond `git show`/`git log`.
+
+### Bugs
+
+**1. `memory_bridge/swap_lab.py:377-384, 402` — "bridge" concurrent-RSS metric includes the workload's RSS (K6 violation).**
+`Monitor.run` sums `vmrss_kib` over *every* pid in `self.pids`, and line 402 adds `"workload"` to that dict. So `bridge_peak_concurrent_rss_kib` (reported at 467 as the bridge processes' footprint) silently includes the ~256 MiB workload. The design doc's K6 requires reporting the bridge processes' actual concurrent RSS; this number overstates it by the RAM budget. Fix: in the loop, `if name == "workload": continue` for the `total`, or keep two totals.
+
+**2. `memory_bridge/swap_lab.py:377, 402` — dict mutated while the monitor thread iterates it.**
+`monitor.start()` runs before `Popen`, and `monitor.pids["workload"] = process.pid` is inserted while `run()` may be in `for name, pid in self.pids.items()`. That raises `RuntimeError: dictionary changed size during iteration` in the daemon thread, which dies silently; the run then reports `monitor_samples` of 0–1 and zero peaks with no error. Fix: build the pid dict (including the workload) before `monitor.start()`, or iterate over `list(self.pids.items())`.
+
+**3. `memory_bridge/swap_lab.py:400-411, 440` — two readers on the workload's stderr pipe.**
+`read_stderr` consumes `process.stderr` in a thread, then `process.communicate()` (which also selects on `stderr` when it is a PIPE) competes for the same fd. Lines are split arbitrarily between the two; `workload_stderr` in the report is unreliable, and if the sweep line is ever still unread when `communicate()` starts (no-fault path is unaffected; fault path is mostly safe only because injection precedes `communicate`) the phase marker is lost. Fix: send stderr to a temp file or read stdout in the thread as well and never call `communicate()`; alternatively set `process.stderr = None` before `communicate()`.
+
+**4. `memory_bridge/resilient.py:139-157, 276-281` — cached reads serialize behind the in-flight mirror write while holding the storage lock.**
+The comment at 279 ("reads keep being served locally while the remote write waits") is only true for blocks that are *not* cache-valid. A read of a valid block takes `self._lock` and then calls `self._remote.read`, which blocks on `RemoteNBDStorage._lock` held by the mirror thread for the duration of its write (up to `io_timeout` on a frozen donor). During that time *every* FUSE operation, including purely local ones, is stalled. In steady state this also means every cached read waits for any mirror batch currently on the single socket, which undercuts the write-behind's purpose and inflates p99 in the `bridge` arm relative to `bridge-sync`. This is not a deadlock (lock order is always storage→remote; the mirror never nests), but K4's "≤ io-timeout + 1 s" bound now applies to all I/O, not just remote. Fix options: (a) a second NBD connection/worker for mirror writes, or (b) check `remote._lock.acquire(blocking=False)` and fall back to local when the mirror holds it, or (c) at minimum correct the comment and document the stall in SWAP-EXPERIMENT risks.
+
+**5. `memory_bridge/block_export_cli.py:78-98` — donor is consumed before `mlockall` can fail.**
+The comment says the local backing is allocated first "so a failure never consumes the single-use donor", but `RemoteNBDStorage(...)` (which performs the one allowed NBD session) runs at 91, while `lock_all_memory()` runs inside `serve()` at 97. An `mlockall` failure (or any `serve` pre-mount failure) therefore burns the donor session. Fix: call `lock_all_memory()` (when `not args.allow_unlocked`) before creating `remote`, and pass `lock_memory=False` to `serve`.
+
+### Risks
+
+**6. `memory_bridge/nbd_worker.py` / `remote_nbd.py:67-71` — the NBD worker is not memory-locked, so the recursive-swap chain is only partially closed.**
+`mlockall` covers the FUSE daemon only. `nbd_worker` (spawned before `mlockall`, and locks are not inherited across exec) and the donor's Python plugin can be swapped to the lab's own swap device under global pressure; a swap-in of a worker page then needs a FUSE read that may need the worker. The lab's cgroup confinement makes this unlikely, but `block_export.py`'s docstring overstates the guarantee. Cheap fix: `mlockall(MCL_CURRENT|MCL_FUTURE)` in `nbd_worker.main` (best effort), and mention the gap in the doc.
+
+**7. `memory_bridge/swap_lab.py:257-258` — export's stderr pipe is never drained during the run.**
+If the FUSE daemon logs more than the 64 KiB pipe buffer (fusepy prints a traceback on every unexpected exception), it blocks on `write(2)` inside a FUSE callback, which stalls swap I/O and hangs the workload until `run_timeout` (1800 s). Redirect stderr to a file in `workdir` or drain in a thread.
+
+**8. `memory_bridge/swap_lab.py:186-188` — `wait_for_ready` can block forever.**
+`process.stdout.readline()` is blocking; the deadline is only checked between lines. If the export neither prints nor exits (e.g. hangs in the NBD handshake or mount), the lab hangs. Use a selector/timeout on the fd or a reader thread with `join(timeout)`.
+
+**9. `memory_bridge/swap_lab.py:400-401` — `preexec_fn` with live threads.**
+`Monitor` and the stderr reader are running when `Popen(preexec_fn=cgroup.attach_self)` forks; `Path.write_text` in the child can deadlock on a lock held by another thread at fork time. Low probability but the failure mode is a silent hang. Prefer `os.open/os.write` in `attach_self`, or spawn via `sh -c 'echo $$ &gt; …/cgroup.procs &amp;&amp; exec "$@"'`.
+
+**10. `memory_bridge/swap_lab.py:642-659` — any non-`LabError` exception in one arm aborts the whole lab.**
+`losetup`/`mkswap`/`swapon` raise `CalledProcessError` (not `LabError`), and `run_workload` can raise `KeyError`/`OSError` while parsing cgroup files. Those propagate out of the `with ExitStack()` (cleanup still runs, which is good) and out of the repetition loop, so remaining arms/repetitions are skipped and the report ends with a traceback rather than an `error` field. Catch `Exception` around the arm body, record it, and continue.
+
+**11. `memory_bridge/block_export.py:188-208` and design doc "Osäkra skrivningar" — EIO on a swap *write* is not a clean failure.**
+The kernel re-dirties the page on a swap write error and retries; the workload does not die, it spins until `run_timeout` with the storage permanently `_failed`. Only swap *read* errors kill the faulting process (SIGBUS). The doc's "kärnan behandlar som swapfel" is accurate but the practical effect should be stated: a local failure during an experiment costs a full `run_timeout`. Consider making `run_workload` poll `stats.json` for `failed: true` and kill the workload early.
+
+**12. `memory_bridge/resilient.py:357-358` — `join(timeout=5)` is shorter than a possible `io_timeout`.**
+`RemoteNBDStorage.close()` cannot interrupt an in-flight `write` (it needs the same lock), so the mirror thread exits only after that write times out. With `--io-timeout &gt; 5`, `close()` returns with the thread alive; harmless for a daemon thread, but the comment ("fails any in-flight mirror write, so the thread exits promptly") is wrong and `test_close_joins_mirror_thread` would be timing-dependent. Join with `max(5, timeout)` or document.
+
+**13. `memory_bridge/block_export.py:252-259` — `mlockall(MCL_FUTURE)` pins every libfuse worker thread's full 8 MiB stack.**
+libfuse2's multithreaded loop spawns up to ~10 workers, each stack fully faulted in and locked: ~80 MiB of RSS attributed to the export process. It is real memory, but it is an artifact of Python+libfuse, not of the design; worth stating in K6 reporting so it is not read as inherent cost. Mitigation: lower `RLIMIT_STACK` for the export process in the lab.
+
+**14. `memory_bridge/pressure_workload.py` + `swap_lab.summarize` — a swap read error does not count as a verification error.**
+An EIO on swap-in kills the workload with SIGBUS; `workload` becomes `None`, `verification_errors` stays 0 and `completed &lt; runs`. K1 ("0 verifieringsfel") must be read together with `completed == runs`; the summary exposes both but the doc's wording invites misreading. Add a `died` count (returncode &lt; 0, not OOM) to the summary.
+
+**15. Tests — assumptions that let real bugs pass or cause flakiness**
+- `tests/test_write_behind.py:58-68` cannot detect the stale-valid bug it is named for: it only asserts final state after the *second* mirror has also been ACKed, which re-marks the block anyway. Make the remote fail (or stay gated) for the second write and assert `cached_blocks == 0` and `read(0,4) == b"new!"`.
+- `tests/test_block_export.py:95-96` skips whenever stderr contains "mount" or "fuse", which also matches real failures ("Mountpoint must be an existing directory", any fusepy traceback). Match the specific permission/`/dev/fuse` error text instead.
+- `tests/test_swap_lab.py:27-33` is timing-based: 25 600 touches vs a 50 ms deadline, checked every 256 touches. Probably fine (~3–8 µs per SHAKE-128 page) but marginal on fast hardware; use `--dataset-mib 4 --rounds 1000`.
+- `tests/test_memory.py:57-62` on a root runner `setuid(65534)` and then imports `ram_plugin` from the checkout; a 0700 root-owned checkout makes the import fail and the assertion on "Cannot lock RAM" fails (loud, not silent). Also assumes uid 65534 is valid and that `setuid` is permitted in the container.
+- `tests/test_swap_lab.py` tests none of the orchestration (`Arm`, `ExitStack` ordering, `Monitor`, `run_workload`); bugs 1–3 are untested. The Monitor and the vmstat/psi delta logic can be unit-tested without root by injecting a fake `/proc` reader.
+- `tests/test_direct_file.py:15-18` skips on *any* `OSError` from `__init__` (ENOSPC, EACCES), not just EINVAL for O_DIRECT; narrow to `errno.EINVAL`.
+- All of `test_swap_lab.py` assumes Linux (`/proc/swaps`); on another platform the guard tests fail with a traceback instead of "Preflight failed".
+
+### Nits
+
+- `memory_bridge/direct_file.py:110` — `bytes(self._buffer[...])` copies twice (mmap slicing already returns `bytes`).
+- `memory_bridge/direct_file.py:121-125` — RMW reads the entire envelope even when only the edge pages are partial; for a 1 MiB write at a 512 B offset that is an extra 1 MiB read. Read only the first and last page.
+- `memory_bridge/block_export_cli.py:96-100` — fusepy raises `RuntimeError` on mount failure and `_fuse_module()` raises `RuntimeError`; only `OSError` is caught, so those exit with a traceback instead of the one-line message.
+- `memory_bridge/block_export.py:112-116` — `__call__` dispatches any attribute name, e.g. `"stats"` resolves to an `ExportStats` object and fails with `TypeError`. Restrict to a whitelist or check `callable`.
+- `memory_bridge/swap_lab.py:567-572` — `p99_seconds` is `None` when the random phase recorded no reads (deadline hit immediately); `statistics.median` then raises `TypeError`.
+- `memory_bridge/swap_lab.py:519-522` — `dataset == ram + swap` is allowed, but the workload also needs interpreter + `versions` array + sampler arrays (~20 MiB), so that boundary case will OOM; require a margin.
+- `memory_bridge/resilient.py:255` — `min(self._pending)` is O(n) per batch (up to 4096 entries at 16 MiB budget); fine for the experiment, but a `heapq`/sorted structure is easy if write-behind survives.
+- `memory_bridge/pressure_workload.py:54-61` — after decimation the sample that triggered it is dropped and retained samples alternate between odd/even multiples of the stride; statistically irrelevant but worth a comment.
+
+### Correct but subtle (no action)
+
+- `resilient.py:228-294` superseded-ACK logic is sound *because* there is exactly one mirror thread: an old batch's ACK is always processed before the next `_take_batch`, so `_inflight[block] = None` cannot be overwritten by newer content while the old write is still outstanding. The `is content` identity check is safe even when CPython returns the same object for a full-range slice, since identical `bytes` identity implies identical content. If a second mirror thread is ever added, this reasoning breaks.
+- `resilient.py:291` the `self._digests is not None` guard is what prevents an ACK arriving after `close()`/`_disable_remote()` from marking a block valid on a cleared bitmap; `_mark` also no-ops when `_valid is None`.
+- Lock ordering is acyclic (storage lock → remote lock; the mirror thread never holds both), so `close()` cannot deadlock; it can block up to `io_timeout` inside `self._lock`.
+- `_queue_mirror` drops the *previous* pending version before applying the budget check, so a block never stays queued with stale content; budget overflow leaves it local-only, which is the invariant-preserving choice.
+- `swap_lab` ExitStack order per arm is right: swapoff → losetup -d → (unlink) → fusermount -u → stop export → stop donor (with SIGCONT first) → rmtree keydir → cgroup rmdir; `_swapoff` raising `LabError` does not prevent the remaining callbacks.
+- `DirectFileStorage` envelope buffer `max + 2*4096` covers the worst unaligned case (`offset % 4096 = 4095`, `count = max`).</result>
+<usage><subagent_tokens>206304</subagent_tokens><tool_uses>22</tool_uses><duration_ms>867270</duration_ms></usage>
+</task-notification>
+  - `Bash: python3 - <<'EOF' from pathlib import Path import re # ---- resilient: mirror-busy flag so cached reads never wait behind an in-flight mirror write p = Path("me`
+  - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("memory_bridge/direct_file.py"); s = p.read_text() old = ''' if relative: self._read_aligned(start, _ALIGN)`
+
+**Claude:** Now the swap-lab fixes from the review (monitor accounting, stderr handling, ready-wait timeout, robust cgroup attach, error capture, summary).
+  - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("memory_bridge/swap_lab.py"); s = p.read_text() # Monitor: exclude workload from concurrent bridge total; it`
+  - `Bash: grep -n "random_read_p99_median_seconds\|p99 = \[" memory_bridge/swap_lab.py; git diff --stat memory_bridge/swap_lab.py`
+  - `Bash: sed -n 566,580p memory_bridge/swap_lab.py`
+  - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("memory_bridge/swap_lab.py"); s = p.read_text() def rep(old, new): global s assert old in s, old[:60] s = s.`
+  - `Bash: grep -n "monitor = Monitor" -A 16 memory_bridge/swap_lab.py | head -24`
+  - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("memory_bridge/swap_lab.py"); s = p.read_text() def rep(old, new): global s assert old in s, old[:60] s = s.`
+  - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("tests/test_write_behind.py"); s = p.read_text() old = ''' def test_superseded_inflight_block_is_never_marke`
+  - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("tests/test_swap_lab.py"); s = p.read_text() old = ''' monitor.start() self.assertTrue(any(monitor.samples f`
+  - `Bash: git add -A memory_bridge tests && git -c user.name="Claude" -c user.email="claude@anthropic.com" commit -q -m "review fixes: no cached-read stall behind mirror`
+
+**Claude:** Review fixes are committed. Part 2 of the uniform run is still going; once it finishes I'll rerun the `bridge` arm with the post-review code so its numbers reflect the current implementation, then run the hotset, fault and slow-disk scenarios.
+
+**You:** Stop hook feedback:
+[~/.claude/stop-hook-git-check.sh]: There are uncommitted changes in the repository. Please commit and push these changes to the remote branch.
+
+**Claude:** Same transient files (live raw data of the running experiment and the Recall log); committed and pushed when the run completes.
+
+**You:** <task-notification>
+<task-id>bjswdootk</task-id>
+<tool-use-id>toolu_01HCmfNZPE4BEemnW9G4H9rt</tool-use-id>
+<output-file>/tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/tasks/bjswdootk.output</output-file>
+<status>completed</status>
+<summary>Background command "Run repetitions 2-3 of the uniform experiment with rotated order" completed (exit code 0)</summary>
+</task-notification>
+  - `Bash: tail -3 /var/tmp/swaplab/main2.log; cat /proc/swaps | wc -l; losetup -l | wc -l; python3 - <<'EOF' import json for f in ("docs/experiments/swap-uniform-part1.js`
+  - `Bash: cat > /var/tmp/swaplab/phase3.sh <<'EOF' set -x P="/usr/bin/python3.12 -m memory_bridge.swap_lab --disposable-vm --directory /var/tmp/swaplab" $P --arms bridge`
+  - `Bash: git add docs/experiments/swap-uniform-part2.json && git -c user.name="Claude" -c user.email="claude@anthropic.com" commit -q -m "data: uniform experiment repeti`
+  - `SendUserMessage: Första resultat (uniform mönster, 3 upprepningar, roterad ordning, 256 MiB RAM-budget / 512 MiB dataset / 768 MiB swap, 0 verifieringsfel överallt): - noswap: O`
+  - `Bash: until grep -q "PHASE3_DONE" /var/tmp/swaplab/phase3.log; do sleep 10; done; grep -E "^\+|repetition" /var/tmp/swaplab/phase3.log | tail -5`
+
+**Claude:** Waiting for phase 3 (post-review bridge reruns, hotset, faults, slow-disk sensitivity) to finish.
+
+**You:** Stop hook feedback:
+[~/.claude/stop-hook-git-check.sh]: There are uncommitted changes in the repository. Please commit and push these changes to the remote branch.
+
+**Claude:** Only the live experiment output and the Recall log remain uncommitted; they go in with the results once phase 3 completes.
+
+**You:** <task-notification>
+<task-id>bpoxy52da</task-id>
+<summary>Monitor event: "swap-lab main experiment progress"</summary>
+<event>[Monitor expired after 30m with 6 events delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
+
+**Claude:** That monitor was for the first run, which is done; the phase-3 wait is tracked by its own background task.
+
+**You:** Stop hook feedback:
+[~/.claude/stop-hook-git-check.sh]: There are uncommitted changes in the repository. Please commit and push these changes to the remote branch.
+
+**Claude:** Unchanged: the uncommitted files are being written by the running phase-3 experiment; they will be committed together with the results when it finishes.

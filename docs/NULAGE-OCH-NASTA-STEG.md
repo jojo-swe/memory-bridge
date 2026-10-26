@@ -1,106 +1,73 @@
 # Memory Bridge – nuläge och nästa arbetspass
 
-Sparat 2026-10-25. Utgångspunkt: version 0.10.0 på `main`.
+Sparat 2026-10-26. Utgångspunkt: version 0.11.0 på branchen
+`feature/swap-experiment-block-export` (PR mot `main`).
 
 ## Slutsats
 
-Vi har ett fungerande Linux-ramverk för fjärrlagring i RAM, med lokal reservkopia
- och verifierade felvägar. Vi har ännu inte visat att lösningen hjälper vanliga
-program på en dator med för lite RAM. Den viktigaste återstående frågan är
-mätbar användarnytta, före fler funktioner och ett konsumentgränssnitt.
+Beslutsgrinden från 0.10 är nu prövad med verkligt kernel-swap under
+kontrollerad minnesbrist. **Nyttan uteblev**: med lokal swap på SSD-klassad
+lagring är Memory Bridge 5,7× långsammare än vanlig lokal swap och 1,75×
+långsammare än samma kodväg utan givare, med liten spridning över upprepningar
+och körordningar. Korrekthet och feltolerans höll: 0 verifieringsfel i alla
+körningar, fallback inom en I/O-deadline vid fryst/död givare och tappad
+anslutning, ingen tyst återanslutning. Detaljer och rådata:
+[SWAP-RESULTAT.md](SWAP-RESULTAT.md), kriterier: [SWAP-EXPERIMENT.md](SWAP-EXPERIMENT.md).
 
-## Vad som finns och har verifierats
+Fjärrcachen lönar sig först när en lokal 4 KiB-slumpläsning kostar mer än
+≈ 0,4 ms (HDD, SD-kort, eMMC); då var bridge 1,6–2,4× snabbare än samma väg
+utan givare i emulerade körningar. Det är en smalare målgrupp än "vanliga
+konsumenter med för lite RAM", och över ett riktigt LAN blir fjärrvägen bara
+dyrare än på loopback.
 
-- Givar-RAM med fast budget, obligatorisk minneslåsning och kvoter.
-- TLS/NBD, privat delad nyckel och en autentiserad session per givarstart.
-- Lokal skrivgenomgående kopia; temporär fil eller valfri beständig SQLite-bakända.
-- Tidsgränser för fjärranrop och permanent fallback till lokal kopia vid givarfel.
-- Lokala SHA-256-digester som verifierar hela cacheblock före användning.
-- Atomiska lokala skrivningar och testad återöppning efter klientkrasch.
-- Kompakt metadata, större sammanhängande överföringar och jämförande benchmark.
-- Installerbara CLI-kommandon som fungerar utan repots rotskript.
+## Vad som finns och har verifierats i 0.11
 
-Senaste verifierade CI: **149 godkända tester, inga överhoppade**.
-Se [CI-körningen](https://github.com/jojo-swe/memory-bridge/actions/runs/40195407580)
-och [testrapporten](TESTRESULTAT.md). Testerna omfattar loopback med riktig
-TLS/NBD, död/fryst givare, korrupta cachesvar, processkrasch och paketets CLI.
+- `block-export`: låntagarens lager som FUSE-fil, `direct_io`, `mlockall`,
+  `EIO` vid lagerfel, `stats.json`; loop+`mkswap`+`swapon` ovanpå fungerar.
+- `DirectFileStorage` (O_DIRECT) så att sidcachen inte döljer diskkostnad.
+- Write-behind-spegling i `ResilientStorage` med ACK-gated giltighet, budget,
+  och lokala läsningar medan en batch sänds (−16 % total tid).
+- `pressure-workload` (sidverifierad), `swap-lab` (disponibel VM, cgroup v1,
+  roterad ordning, felinjektion, städning) och `swap-report` (tabeller).
+- Klientomstart efter SIGKILL på beständig bakända, via FUSE-filen.
+- Startkontroller respekterar `CAP_IPC_LOCK`; testsviten oberoende av root.
+- 177 tester utan överhoppade i miljön med NBD- och FUSE-beroenden.
 
-Dessa tester bevisar de testade funktionerna. De bevisar inte RAM-besparing,
-appacceleration, säker system-swap eller beständighet vid fysiskt strömavbrott.
+Inte verifierat: fysiskt LAN, global minnesbrist (deadlockrisk för Python i
+swapvägen), strömavbrott, omstart av daemonen under aktivt swap.
 
-## Resultat som styr nästa beslut
+## Kostnadsbild att utgå från
 
-De små jämförelserna hittills gav långsammare fjärrläge än en lokal fil med
-varm filcache. Det är inte ett representativt test av en dator under RAM-brist.
-Rådata finns i [0.6-rapporten](benchmark-ci-0.6.0.json) och
-[0.7-rapporten](benchmark-ci-0.7.0.json). De avser äldre versioner och ska
-inte presenteras som prestanda för den nuvarande integritetskontrollen.
+Per cachad 4 KiB-läsning på loopback: nbdkit+TLS ≈ 100 µs (golv även med
+nbdkits C-plugin), projektets Python-plugin +22 µs, processhoppet till
+NBD-arbetaren +150 µs (varav ≈ 87 µs är ren schemaläggning av två
+Python-processer), SHA-256 och lagerlogik +70 µs. Diskläsning: ≈ 47 µs.
+FUSE+loop+Python kostar dessutom ≈ 3,3× i sig mot kernel-swap på en vanlig fil.
 
-Full lokal kopia krävs fortfarande. OS-filcache, givaren, Python-processer,
-TLS och kontrollsummor har minneskostnader. Processernas separata RSS-toppar
-får inte summeras som samtidiga toppar. RLIMIT_AS-tester begränsar virtuell
-adressrymd per process och motsvarar inte systemets fysiska minnestryck.
+## Vägval
 
-## Prioritering
+1. **Smalare målgrupp eller annat användningsfall.** Mät på en riktig maskin
+   med långsam lagring (HDD/SD/eMMC) över LAN innan mer byggs; den emulerade
+   brytpunkten måste bekräftas med fysisk nätverkslatens.
+2. **Ta bort processhoppen om man fortsätter.** En kärnklient (`nbd-client`
+   eller ublk) på låntagaren med lokal kopia i C, eller en enda process med
+   libnbd:s asynkrona API, tar bort ≈ 150–250 µs per läsning. Nätverksvändan
+   och TLS återstår; på SSD räcker det ändå inte.
+3. **Inte GUI, inte fler plattformar.** Beslutsgrinden ("fortsätt mot
+   konsumentprodukt när nyttan visats") är inte passerad.
 
-1. **Linux-systemintegration i isolerad VM.** Gör lagret tillgängligt för
-   swap och testa under kontrollerad minnesbrist. Kartlägg först vad som
-   krävs i låntagarens blockadapter: befintlig kod exponerar inte automatiskt
-   återhämtningslagret som en kernel-enhet. Testa uppkoppling, fryst/död givare,
-   avbrutet nätverk, klientomstart och återställning. Ändra inte vardagsdatorns
-   swap som första experiment.
-2. **Mät användarnytta med samma arbetslast.** Jämför vanlig lokal swap med
-   Memory Bridge under samma RAM-budget, lagring och programversion. Börja
-   med en reproducerbar arbetslast som faktiskt överskrider tilldelat RAM.
-   Använd först loopback för funktion, därefter två fysiska datorer för LAN.
-3. **Säker återlämning av givarminne.** Givaren måste kunna begära tillbaka
-   RAM utan att kasta bort aktiva låntagardata. Enbart TTL eller att stänga
-   sessionen räcker inte; det behövs ett testat avvecklingsprotokoll.
-4. **Enkel installation och parkoppling.** Välj dela/låna, ange budget och
-   visa status. Lägg därefter till tjänstestart, uppdateringar och ett enkelt
-   gränssnitt. Välj fler plattformar först när nyttan är visad.
-5. **Konfidentialitet hos givaren.** TLS skyddar transporten och digester
-   upptäcker fel innehåll, men givarens administratör kan läsa klartext.
-   Klientkryptering med genomtänkt nyckelhantering behövs för mindre betrodda
-   givare. Detta är separat från den befintliga integritetskontrollen.
+## Kvarstående konkreta hinder
 
-## Konkret startpunkt nästa gång
-
-Börja med en inventering av VM-möjligheter och behörigheter. Skapa därefter
-ett dokumenterat VM-experiment med fasta resurser och snapshots. NAS:en var
-inte tillgänglig under tidigare utveckling; förutsätt inte att den är online.
-
-Innan ny implementation: identifiera hur låntagarens återhämtningslager ska
-exponeras som blockenhet och vilka timeout-/flush-/felgarantier systemet behöver.
-Använd inte den råa engångsgivaren som om den redan hade lokal fallback.
-
-Registrera åtminstone:
-
-- faktisk RAM- och swapbudget, lagringstyp och nätverkslatens;
-- arbetslast, seed, versioner, upprepningar och körordning;
-- slutförda jobb, total tid, svarstider, swap-I/O och eventuella OOM-fel;
-- samtidig minnesåtgång på låntagare och givare samt filcache;
-- korrekthet och väntetid vid varje injicerat avbrott.
-
-Ändra inte databevarande eller beständighetskrav mellan alternativen utan att
-redovisa det. Nuvarande benchmark med temporär fil har andra skrivkostnader
-än den beständiga SQLite-bakändan.
-
-## Beslutsgrind
-
-Fortsätt mot konsumentprodukt när en representativ arbetslast visar att
-Memory Bridge slutför mer arbete eller förbättrar användbara svarstider under
-RAM-brist, med acceptabel overhead och utan datafel i avbrottstesterna.
-Bestäm kvantitativa gränser innan mätningarna körs.
-
-Om vinsten uteblir: analysera var kostnaden ligger och pröva en ändrad
-arkitektur eller smalare målgrupp. Lägg inte ett stort GUI ovanpå en lösning
-vars nytta fortfarande är obevisad. En återgång eller ett vägbyte ska bygga
-på mätdata, inte på antalet godkända enhetstester.
+- Python i swapvägen kan inte göras deadlocksäker under global minnesbrist.
+- Givaren behöver 768 MiB låst RAM + ≈ 50 MiB; låntagarsidan ≈ 180 MiB i
+  Python-processer utöver full lokal kopia på disk.
+- Write-behind-budgeten (16 MiB) blev full under swap-ut-toppar; 30 % av
+  blocken lämnades olagrade. Större budget kostar låst RAM hos låntagaren.
+- Experimentkärnan saknade NBD-klient och ublk; FUSE+loop är en labbväg.
 
 ## Fortsättningsinstruktion
 
-> Läs detta dokument, ARKITEKTUR.md och TESTRESULTAT.md. Kontrollera senaste
-> main och behåll redan verifierade garantier. Prioritera isolerad
-> systemintegration och reproducerbar nytta under minnesbrist. Dokumentera
-> vad som faktiskt körts och skilj det från antaganden och framtida mål.
+> Läs detta dokument, SWAP-RESULTAT.md och ARKITEKTUR.md. Bygg inte fler
+> funktioner ovanpå den nuvarande låntagarvägen förrän en fysisk mätning på
+> långsam lagring över LAN visat nytta. Om ett vägbyte görs, behåll
+> lokal-first, verifiering före exponering, deadlines och exklusivt ägande.

@@ -79,10 +79,12 @@ class MountTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.mountpoint = Path(self.directory.name) / "mnt"
         self.mountpoint.mkdir()
+        self.start(["--backing", "temp", "--directory", self.directory.name])
+
+    def start(self, backing_arguments):
         self.process = subprocess.Popen(
             [sys.executable, "-m", "memory_bridge.block_export_cli", str(self.mountpoint),
-             "--size-mib", "1", "--backing", "temp", "--directory", self.directory.name,
-             "--allow-unlocked"],
+             "--size-mib", "1", "--allow-unlocked", *backing_arguments],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         self.addCleanup(self.stop)
         deadline = time.monotonic() + 15
@@ -125,6 +127,27 @@ class MountTests(unittest.TestCase):
         self.assertEqual(report["export"]["errors"], 0)
         with self.assertRaises(OSError):
             os.truncate(volume, 4096)
+
+    def test_persistent_backing_survives_daemon_sigkill_and_restart(self):
+        """K5: data written through the export is readable by a new daemon process."""
+        self.stop()  # replace the temporary backing with a persistent one
+        database = Path(self.directory.name) / "volume.db"
+        self.start(["--backing", "persistent", "--path", str(database), "--create"])
+        payload = os.urandom(32768)
+        with open(self.mountpoint / "volume", "r+b", buffering=0) as handle:
+            handle.seek(65536)
+            handle.write(payload)
+            os.fsync(handle.fileno())
+        self.process.kill()  # simulate a borrower crash without any unmount
+        self.process.wait(timeout=10)
+        tool = shutil.which("fusermount3") or shutil.which("fusermount")
+        subprocess.run([tool, "-uz", str(self.mountpoint)], capture_output=True)
+        self.start(["--backing", "persistent", "--path", str(database)])
+        with open(self.mountpoint / "volume", "rb", buffering=0) as handle:
+            handle.seek(65536)
+            self.assertEqual(handle.read(32768), payload)
+            handle.seek(0)
+            self.assertEqual(handle.read(4096), bytes(4096))
 
 
 if __name__ == "__main__":

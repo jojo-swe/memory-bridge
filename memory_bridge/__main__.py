@@ -57,7 +57,7 @@ def main():
         "recover": "recovery_cli", "checkpoint": "checkpoint_cli",
         "donor": "launcher", "keygen": "launcher",
         "block-export": "block_export_cli", "swap-lab": "swap_lab",
-        "pressure-workload": "pressure_workload",
+        "pressure-workload": "pressure_workload", "swap-report": "swap_report",
     }
     if len(sys.argv) > 1 and sys.argv[1] in installed_commands:
         command = sys.argv[1]
@@ -66,7 +66,7 @@ def main():
         return import_module("." + installed_commands[command], __package__).main()
     parser = argparse.ArgumentParser(description=__doc__,
         epilog="Installed commands: lab, compare, benchmark, recover, checkpoint, donor, keygen, "
-               "block-export, swap-lab, pressure-workload (use COMMAND --help)")
+               "block-export, swap-lab, pressure-workload, swap-report (use COMMAND --help)")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("demo")
     commands.add_parser("doctor")

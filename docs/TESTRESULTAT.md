@@ -1,3 +1,25 @@
+## 0.11.0 – blockexport, write-behind och swap-experiment
+
+Lokalt i den disponibla experiment-VM:en (root, Ubuntu 24.04, Python 3.12.3,
+nbdkit 1.36.3, libnbd 1.20.0, fusepy/libfuse 2.9.9): `run_tests.py
+--require-integration` ger **177 godkända tester, inga överhoppade**, inklusive
+riktig TLS/NBD på loopback, FUSE-montering genom kärnan, O_DIRECT-bakända,
+write-behind-invarianter, klientomstart efter SIGKILL på beständig bakända och
+labbets skyddsspärrar. GitHub Actions-körningen länkas från PR:en.
+
+Två befintliga tester antog en oprivilegierad körning (`RLIMIT_MEMLOCK`
+binder inte en process med `CAP_IPC_LOCK`); de är rättade utan att försvaga
+invarianten. Installerat wheel verifierat i ny venv utanför projektmappen:
+`memory-bridge block-export`, `swap-lab --help`, `pressure-workload` och
+`checkpoint` fungerar.
+
+Swap-experimentet (30 slutförda swap-körningar, 3 felinjektioner, 0
+verifieringsfel) redovisas i [SWAP-RESULTAT.md](SWAP-RESULTAT.md). Det är ett
+verkligt kernel-swap i en VM, inte en simulering, men bara på loopback och med
+cgroup-begränsat minne. Nytta mot lokal swap visades **inte** på SSD-klassad
+lagring; fallback vid fryst/död givare och tappad anslutning verifierades
+under aktivt swap.
+
 ## 0.10.0 – fristående installerat CLI
 
 PR #3 mergad. https://github.com/jojo-swe/memory-bridge/actions/runs/40195407580
