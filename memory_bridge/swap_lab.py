@@ -247,8 +247,8 @@ class Arm:
         run(["losetup", "-d", device])
 
     def _start_export(self, extra):
-        self.mountpoint = self.workdir / f"mount-{self.name}"
-        self.mountpoint.mkdir()
+        self.mountpoint = Path(tempfile.mkdtemp(prefix=f"mount-{self.name}-", dir=self.workdir))
+        self.stack.callback(self._remove_mountpoint)
         command = [sys.executable, "-m", "memory_bridge.block_export_cli", str(self.mountpoint),
                    "--size-mib", str(self.args.swap_mib), "--backing", "direct",
                    "--directory", str(self.args.directory), "--transfer-kib",
@@ -259,6 +259,12 @@ class Arm:
         self.stack.callback(self._stop_export)
         wait_for_ready(self.export)
         self.stack.callback(self._unmount)
+
+    def _remove_mountpoint(self):
+        try:
+            self.mountpoint.rmdir()
+        except OSError as error:
+            self.notes.append({"mountpoint_removal_failed": str(error)})
 
     def _unmount(self):
         tool = shutil.which("fusermount3") or shutil.which("fusermount")
@@ -585,6 +591,8 @@ def main():
     parser.add_argument("--arms", default="local-swap,fuse-local,bridge",
                         help="Comma-separated subset of: " + ",".join(ARMS))
     parser.add_argument("--repetitions", type=int, default=3)
+    parser.add_argument("--order-offset", type=int, default=0,
+                        help="Rotate the first repetition's arm order by this many positions")
     parser.add_argument("--ram-mib", type=int, default=256)
     parser.add_argument("--dataset-mib", type=int, default=512)
     parser.add_argument("--swap-mib", type=int, default=768)
@@ -629,7 +637,8 @@ def main():
     try:
         for repetition in range(args.repetitions):
             # Rotate the order each repetition so order effects are visible.
-            order = args.arms[repetition % len(args.arms):] + args.arms[:repetition % len(args.arms)]
+            shift = (repetition + args.order_offset) % len(args.arms)
+            order = args.arms[shift:] + args.arms[:shift]
             for arm_name in order:
                 ram = args.ram_mib * MIB
                 swap = args.swap_mib * MIB
@@ -643,14 +652,19 @@ def main():
                     cgroup = Cgroup(f"memory-bridge-swap-lab-{os.getpid()}-{repetition}-{arm_name}",
                                     limit, memsw)
                     stack.callback(cgroup.remove)
-                    arm = Arm(arm_name, args, stack, workdir)
+                    try:
+                        arm = Arm(arm_name, args, stack, workdir)
+                    except (LabError, OSError, subprocess.SubprocessError) as error:
+                        record["error"] = f"setup {type(error).__name__}: {error}"
+                        report["runs"].append(record)
+                        continue
                     record["swap_device"] = arm.swap_device
                     record["losetup"] = getattr(arm, "losetup", None)
                     record["proc_swaps"] = read_text("/proc/swaps")
                     try:
                         record.update(run_workload(args, cgroup, arm, fault))
-                    except LabError as error:
-                        record["error"] = str(error)
+                    except (LabError, OSError, subprocess.SubprocessError) as error:
+                        record["error"] = f"{type(error).__name__}: {error}"
                     record["dmesg"] = dmesg_tail(("Out of memory", "oom", "swap", "loop", "fuse", "I/O error"))
                 record["arm_notes"] = arm.notes
                 record["export_final"] = getattr(arm, "export_output", None)
