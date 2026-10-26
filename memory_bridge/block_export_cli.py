@@ -22,7 +22,7 @@ import math
 from pathlib import Path
 import sys
 
-from memory_bridge.block_export import serve
+from memory_bridge.block_export import lock_all_memory, serve
 from memory_bridge.direct_file import DirectFileStorage
 from memory_bridge.launcher import private_key
 from memory_bridge.local_disk import TemporaryFileStorage
@@ -86,6 +86,13 @@ def main():
         else:
             local = PersistentStorage(args.path, size, create=args.create)
         cleanup.callback(local.close)
+        if not args.allow_unlocked:
+            # Lock before the single-use donor session is consumed, so that a
+            # refused mlockall never burns the export.
+            try:
+                lock_all_memory()
+            except OSError as error:
+                parser.exit(1, f"Block export failed: {error}\n")
         storage = local
         if key is not None:
             remote = RemoteNBDStorage(args.host, args.port, key, size, timeout=args.io_timeout)
@@ -94,9 +101,8 @@ def main():
                                        write_behind_bytes=args.write_behind_mib * 1024 * 1024)
             cleanup.callback(storage.close)
         try:
-            stats = serve(storage, args.mountpoint, ready=ready,
-                          lock_memory=not args.allow_unlocked)
-        except OSError as error:
+            stats = serve(storage, args.mountpoint, ready=ready, lock_memory=False)
+        except (OSError, RuntimeError) as error:
             parser.exit(1, f"Block export failed: {error}\n")
         final = {"export": stats}
         if key is not None:

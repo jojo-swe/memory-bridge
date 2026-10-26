@@ -59,13 +59,38 @@ class WriteBehindTests(unittest.TestCase):
         self.remote.gate.clear()
         self.storage.write(0, b"old!" * 1024)
         self.assertTrue(self.remote.started.wait(2))
-        # The mirror of "old!" is in flight; overwrite locally with new data.
+        # The mirror of "old!" is in flight; overwrite locally with new data
+        # and make the follow-up mirror fail, so only the stale ACK arrives.
+        self.storage.write(0, b"new!" * 1024)
+        self.remote.fail_writes = True
+        self.remote.gate.set()
+        self.assertTrue(wait_until(lambda: not self.storage.snapshot()["remote_enabled"]))
+        self.assertEqual(len(self.remote.writes), 1)  # only the stale write reached the remote
+        self.assertEqual(self.storage.snapshot()["cached_blocks"], 0)
+        self.assertEqual(self.storage.read(0, 4), b"new!")
+
+    def test_superseded_block_is_revalidated_by_its_newer_mirror(self):
+        self.remote.gate.clear()
+        self.storage.write(0, b"old!" * 1024)
+        self.assertTrue(self.remote.started.wait(2))
         self.storage.write(0, b"new!" * 1024)
         self.remote.gate.set()
         self.assertTrue(wait_until(lambda: len(self.remote.writes) >= 2))
-        self.assertTrue(wait_until(lambda: self.storage.snapshot()["pending_mirror_blocks"] == 0))
-        self.assertEqual(self.storage.read(0, 4), b"new!")
+        self.assertTrue(wait_until(lambda: self.storage.snapshot()["cached_blocks"] == 1))
         self.assertEqual(self.remote.data[:4], b"new!")
+        self.local.fail_reads = True
+        self.assertEqual(self.storage.read(0, 4), b"new!")
+
+    def test_cached_read_is_served_locally_while_mirror_write_is_in_flight(self):
+        self.storage.write(4096, b"m" * 4096)
+        self.assertTrue(wait_until(lambda: self.storage.snapshot()["cached_blocks"] == 1))
+        self.remote.gate.clear()
+        self.remote.started.clear()
+        self.storage.write(8192, b"n" * 4096)
+        self.assertTrue(self.remote.started.wait(2))
+        self.remote.data[4096:8192] = b"z" * 4096  # a remote read would return this
+        self.assertEqual(self.storage.read(4096, 4), b"mmmm")  # served locally, no stall
+        self.remote.gate.set()
 
     def test_budget_overflow_keeps_blocks_local_only(self):
         self.remote.gate.clear()

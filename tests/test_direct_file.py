@@ -1,5 +1,6 @@
 """O_DIRECT local backing: alignment handling, flush, bounds and cleanup."""
 
+import errno
 import os
 import random
 import tempfile
@@ -15,6 +16,8 @@ class DirectFileTests(unittest.TestCase):
         try:
             self.storage = DirectFileStorage(64 * 1024, self.directory.name, max_request_bytes=16384)
         except OSError as error:
+            if error.errno != errno.EINVAL:
+                raise
             self.skipTest(f"O_DIRECT unsupported on this filesystem: {error}")
         self.addCleanup(self.storage.close)
 

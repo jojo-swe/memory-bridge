@@ -111,7 +111,7 @@ class BlockFileOperations:
     # fusepy looks up methods by name; unsupported ones raise ENOSYS/EROFS.
     def __call__(self, operation, *args):
         method = getattr(self, operation, None)
-        if method is None:
+        if method is None or not callable(method) or operation.startswith("_"):
             raise self._fuse.FuseOSError(errno.ENOSYS)
         return method(*args)
 
@@ -251,6 +251,14 @@ def serve(storage, mountpoint, *, max_request_bytes=1024 * 1024, ready=None,
         raise ValueError("Mountpoint must be an existing directory")
     if lock_memory:
         lock_all_memory()
+    # libfuse creates worker threads whose default stack size follows
+    # RLIMIT_STACK; with MCL_FUTURE every such stack is faulted in and locked,
+    # so bound it to keep the daemon's RSS honest.
+    import resource
+    soft, hard = resource.getrlimit(resource.RLIMIT_STACK)
+    wanted = 2 * 1024 * 1024
+    if soft == resource.RLIM_INFINITY or soft > wanted:
+        resource.setrlimit(resource.RLIMIT_STACK, (wanted, hard))
     operations = BlockFileOperations(storage, max_request_bytes=max_request_bytes, ready=ready)
     # direct_io: no kernel page cache for the volume (the loop device and swap
     # already own the data). big_writes raises the write unit above 4 KiB.

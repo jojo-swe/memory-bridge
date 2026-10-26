@@ -77,7 +77,19 @@ def serve(sock):
         # Process exit closes libnbd without a potentially blocking shutdown.
 
 
+def _lock_memory():
+    """Best effort: a worker page swapped to a device this worker serves is a deadlock."""
+    try:
+        import ctypes
+        libc = ctypes.CDLL(None, use_errno=True)
+        libc.mlockall.argtypes = [ctypes.c_int]
+        libc.mlockall(1 | 2)  # MCL_CURRENT | MCL_FUTURE; failure is tolerated here
+    except (OSError, AttributeError):
+        pass
+
+
 def main():
+    _lock_memory()
     with socket.socket(fileno=int(sys.argv[1])) as sock:
         serve(sock)
 

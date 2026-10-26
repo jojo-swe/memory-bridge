@@ -68,6 +68,7 @@ class ResilientStorage:
         self._pending = {}       # block index -> full block bytes awaiting mirror
         self._pending_bytes = 0
         self._inflight = {}      # block index -> bytes being mirrored, None if superseded
+        self._mirror_busy = False  # a mirror write holds the remote; reads go local meanwhile
         self._mirror_dropped = 0  # blocks left local-only because the budget was full
         self._stopping = False
         self._condition = threading.Condition(self._lock)
@@ -136,7 +137,11 @@ class ResilientStorage:
             end = offset + count
             while offset < end:
                 block = offset // self._block_size
-                use_remote = self._remote_enabled and self._is_valid(block)
+                # While the mirror thread is inside a remote write, the remote
+                # lock is taken for up to one deadline; serving such reads from
+                # the local copy keeps cached reads from stalling behind it.
+                use_remote = (self._remote_enabled and not self._mirror_busy
+                              and self._is_valid(block))
                 # Remote reads include whole blocks even for a partial caller
                 # range, so corruption outside that range is still detected.
                 start = block * self._block_size if use_remote else offset
@@ -146,7 +151,8 @@ class ResilientStorage:
                 stop = min(limit, (block + 1) * self._block_size)
                 # Coalesce adjacent blocks only while their backing agrees.
                 while stop < limit:
-                    next_remote = self._remote_enabled and self._is_valid(stop // self._block_size)
+                    next_remote = (self._remote_enabled and not self._mirror_busy
+                               and self._is_valid(stop // self._block_size))
                     if next_remote != use_remote:
                         break
                     stop = min(limit, (stop // self._block_size + 1) * self._block_size)
@@ -273,20 +279,23 @@ class ResilientStorage:
                     self._pending_bytes = 0
                     return
                 batch = self._take_batch()
+                self._mirror_busy = True
             start = batch[0][0] * self._block_size
             payload = b"".join(content for _, content in batch)
             try:
-                # Outside the storage lock: reads keep being served locally
-                # while the remote write waits on its own deadline.
+                # Outside the storage lock: callers keep reading and writing
+                # locally while this remote write waits on its own deadline.
                 self._remote.write(start, payload)
             except Exception:
                 with self._condition:
+                    self._mirror_busy = False
                     self._disable_remote()
                     self._pending.clear()
                     self._pending_bytes = 0
                     self._inflight.clear()
                 return
             with self._condition:
+                self._mirror_busy = False
                 for block, content in batch:
                     if self._inflight.pop(block, None) is content and self._digests is not None:
                         digest = hashlib.sha256(content).digest()
@@ -352,10 +361,11 @@ class ResilientStorage:
                     raise cancellation
             if self._close_failed:
                 raise BackendError("Storage cleanup failed") from None
-        # Closing the remote fails any in-flight mirror write, so the thread
-        # exits promptly; join outside the lock it needs for that exit.
+        # The remote is closed, so the next mirror write fails and the thread
+        # exits; an in-flight write first runs to its own deadline. Join
+        # outside the lock the thread needs for that exit.
         if self._mirror_thread is not None:
-            self._mirror_thread.join(timeout=5)
+            self._mirror_thread.join(timeout=30)
 
     def __enter__(self):
         return self

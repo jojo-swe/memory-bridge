@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import unittest
 
 from memory_bridge import swap_lab
@@ -26,11 +27,11 @@ class WorkloadTests(unittest.TestCase):
 
     def test_deadline_stops_random_phase(self):
         result = subprocess.run([sys.executable, "-m", "memory_bridge.pressure_workload",
-                                 "--dataset-mib", "2", "--rounds", "50", "--deadline", "0.05"],
+                                 "--dataset-mib", "4", "--rounds", "1000", "--deadline", "0.05"],
                                 capture_output=True, text=True, timeout=120)
         report = json.loads(result.stdout.strip().splitlines()[-1])
         self.assertTrue(report["deadline_hit"])
-        self.assertLess(report["rounds_completed"], 50)
+        self.assertLess(report["rounds_completed"], 1000)
 
 
 class SamplerTests(unittest.TestCase):
@@ -64,6 +65,19 @@ class GuardRailTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("unknown arm", result.stderr)
 
+    def test_monitor_excludes_workload_from_bridge_total(self):
+        monitor = swap_lab.Monitor({"export": os.getpid(), "workload": os.getpid()}, interval=0.05)
+        monitor.start()
+        deadline = time.monotonic() + 5
+        while monitor.samples < 2 and time.monotonic() < deadline:
+            time.sleep(0.02)
+        monitor.stop.set()
+        monitor.join(timeout=2)
+        own = swap_lab.process_memory(os.getpid())["vmrss_kib"]
+        self.assertGreater(monitor.peak_concurrent_rss_kib, 0)
+        self.assertLessEqual(monitor.peak_concurrent_rss_kib, own * 1.5)
+        self.assertIn("workload", monitor.peak_by_process)
+
     def test_summary_ignores_fault_runs_and_counts_oom(self):
         def run(arm, wall, p99, oom=False, fault=None):
             workload = None if oom else {
@@ -77,6 +91,7 @@ class GuardRailTests(unittest.TestCase):
         self.assertEqual(summary["local-swap"]["random_wall_median_seconds"], 3.0)
         self.assertEqual(summary["local-swap"]["random_read_p99_median_seconds"], 0.2)
         self.assertEqual(summary["noswap"]["oom_killed"], 1)
+        self.assertEqual(summary["noswap"]["died_other"], 0)
         self.assertNotIn("bridge", summary)
 
 

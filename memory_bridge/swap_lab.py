@@ -149,7 +149,13 @@ class Cgroup:
                 "stat_pgmajfault": stat.get("pgmajfault")}
 
     def attach_self(self):
-        (self.path / "cgroup.procs").write_text(str(os.getpid()))
+        # Runs between fork and exec: use raw syscalls only, never Python
+        # file objects whose locks another thread may hold at fork time.
+        fd = os.open(self.path / "cgroup.procs", os.O_WRONLY)
+        try:
+            os.write(fd, str(os.getpid()).encode())
+        finally:
+            os.close(fd)
 
     def remove(self):
         for _ in range(50):
@@ -182,18 +188,26 @@ def wait_for_port(process, port, timeout=10):
 
 def wait_for_ready(process, timeout=20):
     """The export prints one JSON line when the kernel accepted the mount."""
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        line = process.stdout.readline()
-        if line:
+    result = {}
+
+    def reader():
+        for line in process.stdout:
             try:
                 message = json.loads(line)
             except ValueError:
                 continue
             if message.get("ready"):
-                return message
-        if process.poll() is not None:
-            raise LabError("Block export exited during startup: " + process.stderr.read()[-500:])
+                result.update(message)
+                return
+
+    thread = threading.Thread(target=reader, daemon=True)
+    thread.start()
+    thread.join(timeout=timeout)
+    if result:
+        return result
+    if process.poll() is not None:
+        raise LabError("Block export exited during startup")
+    process.kill()
     raise LabError("Block export startup deadline exceeded")
 
 
@@ -254,8 +268,10 @@ class Arm:
                    "--directory", str(self.args.directory), "--transfer-kib",
                    str(self.args.transfer_kib), "--io-timeout", str(self.args.io_timeout),
                    "--disk-latency-ms", str(self.args.disk_latency_ms)] + extra
-        self.export = subprocess.Popen(command, cwd=ROOT, stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE, text=True)
+        self.export_log = self.workdir / f"export-{self.mountpoint.name}.log"
+        with open(self.export_log, "w") as log:
+            self.export = subprocess.Popen(command, cwd=ROOT, stdout=subprocess.PIPE,
+                                           stderr=log, text=True)
         self.stack.callback(self._stop_export)
         wait_for_ready(self.export)
         self.stack.callback(self._unmount)
@@ -283,9 +299,12 @@ class Arm:
     def _stop_export(self):
         if self.export.poll() is None:
             stop_process(self.export)
-        out, err = self.export.communicate()
+        out, _ = self.export.communicate()
         self.export_output = out[-4000:]
-        self.export_errors = err[-2000:]
+        try:
+            self.export_errors = self.export_log.read_text()[-2000:]
+        except OSError:
+            self.export_errors = None
 
     def _start_donor(self):
         keydir = Path(tempfile.mkdtemp(prefix="swap-lab-key-", dir=self.workdir))
@@ -379,12 +398,13 @@ class Monitor(threading.Thread):
 
     def run(self):
         while not self.stop.is_set():
-            total = 0
-            for name, pid in self.pids.items():
+            total = 0  # bridge processes only; the workload is reported separately
+            for name, pid in list(self.pids.items()):
                 memory = process_memory(pid)
                 if memory is None:
                     continue
-                total += memory.get("vmrss_kib", 0)
+                if name != "workload":
+                    total += memory.get("vmrss_kib", 0)
                 self.peak_by_process[name] = max(self.peak_by_process.get(name, 0),
                                                  memory.get("vmhwm_kib", 0))
             self.peak_concurrent_rss_kib = max(self.peak_concurrent_rss_kib, total)
@@ -400,23 +420,26 @@ def run_workload(args, cgroup, arm, fault):
         command += ["--deadline", str(args.deadline)]
     before = {"vmstat": vmstat_swap(), "psi": psi_memory(), "cgroup": cgroup.snapshot(),
               "export": arm.export_stats()}
-    monitor = Monitor(arm.bridge_pids())
-    monitor.start()
+    pids = arm.bridge_pids()
     started = time.monotonic()
     process = subprocess.Popen(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                text=True, preexec_fn=cgroup.attach_self)
-    monitor.pids["workload"] = process.pid
+    pids["workload"] = process.pid
+    monitor = Monitor(pids)
+    monitor.start()
     fault_record = None
     stderr_lines = []
     timed_out = False
-
     fault_done = threading.Event()
+    # Exactly one reader per pipe: the thread owns stderr, communicate() stdout.
+    stderr_pipe, process.stderr = process.stderr, None
 
     def read_stderr():
-        for line in process.stderr:
-            stderr_lines.append(line.rstrip())
-            if '"phase": "sweep"' in line:
-                fault_done.set()  # the random phase starts right after the sweep
+        with stderr_pipe:
+            for line in stderr_pipe:
+                stderr_lines.append(line.rstrip())
+                if '"phase": "sweep"' in line:
+                    fault_done.set()  # the random phase starts right after the sweep
 
     reader = threading.Thread(target=read_stderr, daemon=True)
     reader.start()
@@ -524,8 +547,8 @@ def preflight(args):
         problems.append("faults are injected in the bridge arm only")
     if args.dataset_mib <= args.ram_mib:
         problems.append("dataset must exceed the RAM budget or there is no memory pressure")
-    if args.dataset_mib > args.ram_mib + args.swap_mib:
-        problems.append("dataset exceeds RAM + swap; every arm would OOM")
+    if args.dataset_mib + 32 > args.ram_mib + args.swap_mib:
+        problems.append("dataset plus ~32 MiB interpreter overhead exceeds RAM + swap; every swap arm would OOM")
     meminfo = dict(line.split(":") for line in read_text("/proc/meminfo").splitlines())
     available_kib = int(meminfo["MemAvailable"].split()[0])
     need_kib = (args.swap_mib + args.ram_mib) * 1024 * 2
@@ -566,16 +589,20 @@ def summarize(runs):
         completed = [r for r in selected if r.get("workload") is not None]
         entry = {"runs": len(selected), "completed": len(completed),
                  "oom_killed": sum(1 for r in selected if r.get("oom_killed")),
+                 "died_other": sum(1 for r in selected if r.get("workload") is None
+                                   and not r.get("oom_killed")),
                  "verification_errors": sum(r["workload"]["verification_errors"] for r in completed)}
         if completed:
             random_wall = [r["workload"]["phases"]["random"]["wall_seconds"] for r in completed]
             total_wall = [r["workload"]["total_wall_seconds"] for r in completed]
-            p99 = [r["workload"]["phases"]["random_reads"]["p99_seconds"] for r in completed]
+            p99 = [r["workload"]["phases"]["random_reads"]["p99_seconds"] for r in completed
+                   if r["workload"]["phases"]["random_reads"]["p99_seconds"] is not None] or [None]
             entry.update({"random_wall_median_seconds": statistics.median(random_wall),
                           "random_wall_min_seconds": min(random_wall),
                           "random_wall_max_seconds": max(random_wall),
                           "total_wall_median_seconds": statistics.median(total_wall),
-                          "random_read_p99_median_seconds": statistics.median(p99),
+                          "random_read_p99_median_seconds": (statistics.median(p99)
+                                                             if p99[0] is not None else None),
                           "rounds_completed": [r["workload"]["rounds_completed"] for r in completed],
                           "pswpin_median": statistics.median(r["swap_io"]["pswpin"] for r in completed),
                           "pswpout_median": statistics.median(r["swap_io"]["pswpout"] for r in completed)})
@@ -654,7 +681,7 @@ def main():
                     stack.callback(cgroup.remove)
                     try:
                         arm = Arm(arm_name, args, stack, workdir)
-                    except (LabError, OSError, subprocess.SubprocessError) as error:
+                    except Exception as error:  # cleanup ran via ExitStack
                         record["error"] = f"setup {type(error).__name__}: {error}"
                         report["runs"].append(record)
                         continue
@@ -663,7 +690,7 @@ def main():
                     record["proc_swaps"] = read_text("/proc/swaps")
                     try:
                         record.update(run_workload(args, cgroup, arm, fault))
-                    except (LabError, OSError, subprocess.SubprocessError) as error:
+                    except Exception as error:  # record and continue with the next arm
                         record["error"] = f"{type(error).__name__}: {error}"
                     record["dmesg"] = dmesg_tail(("Out of memory", "oom", "swap", "loop", "fuse", "I/O error"))
                 record["arm_notes"] = arm.notes

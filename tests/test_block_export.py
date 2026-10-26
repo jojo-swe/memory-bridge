@@ -92,7 +92,7 @@ class MountTests(unittest.TestCase):
                 return
             if self.process.poll() is not None:
                 error = self.process.stderr.read()
-                if "fuse" in error.lower() or "mount" in error.lower():
+                if "permission denied" in error.lower() or "/dev/fuse" in error.lower():
                     self.skipTest("FUSE mount not permitted here: " + error.strip()[-200:])
                 self.fail(error)
         self.fail("export did not become ready")

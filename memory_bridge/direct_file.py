@@ -90,6 +90,18 @@ class DirectFileStorage:
                 raise OSError("Short local backing read")
             done += got
 
+    def _read_edge(self, start, position):
+        """Read one page into the buffer at a non-zero buffer position."""
+        if self._emulated_latency:
+            time.sleep(self._emulated_latency)
+        view = memoryview(self._buffer)[position:position + _ALIGN]
+        done = 0
+        while done < _ALIGN:
+            got = os.preadv(self._fd, [view[done:]], start + done)
+            if got <= 0:
+                raise OSError("Short local backing read")
+            done += got
+
     def _write_aligned(self, start, length):
         if self._emulated_latency:
             time.sleep(self._emulated_latency)
@@ -107,7 +119,7 @@ class DirectFileStorage:
             start, end = self._envelope(offset, count)
             self._read_aligned(start, end - start)
             relative = offset - start
-            return bytes(self._buffer[relative:relative + count])
+            return self._buffer[relative:relative + count]  # mmap slicing yields bytes
 
     def write(self, offset, data):
         if not isinstance(data, bytes):
@@ -118,9 +130,17 @@ class DirectFileStorage:
             relative = offset - start
             aligned = relative == 0 and len(data) == end - start
             if not aligned:
-                # Read-modify-write only the partial edge pages; a failed read
-                # here raises before any bytes are changed on disk.
-                self._read_aligned(start, end - start)
+                # Read-modify-write only the partial edge pages (never the whole
+                # envelope); a failed read raises before any byte changes on disk.
+                head_partial = relative != 0
+                tail_partial = (offset + len(data)) % _ALIGN != 0
+                if end - start == _ALIGN:
+                    self._read_aligned(start, _ALIGN)  # one page, partial either way
+                else:
+                    if head_partial:
+                        self._read_aligned(start, _ALIGN)
+                    if tail_partial:
+                        self._read_edge(end - _ALIGN, end - start - _ALIGN)
             self._buffer[relative:relative + len(data)] = data
             self._write_aligned(start, end - start)
 
