@@ -1,3 +1,20 @@
+## 0.11.0 – blockadapter och swap-experiment
+
+Lokalt (icke-root, memlock 8 MiB, riktig nbdkit/libnbd): **191 godkända**,
+1 överhoppad (låsningsläget, kräver CAP_IPC_LOCK). CI med höjd memlock-gräns:
+**191 godkända, inga överhoppade** (PR #4). Nya tester täcker O_DIRECT-kopian
+(justering, omstart efter SIGKILL, exklusivitet, tmpfs-avvisning, fsync-fel),
+exporten via riktig NBD (flaggor, exklusiv klient, fjärrcache som verifierat
+serverar läsningar och faller tillbaka vid fryst givare med bevis via
+byteräknare, skrivning under fryst givare, långsam givare som inte kan hålla
+en begäran längre än timeout, omstart mot namngiven kopia, låsningsläge),
+workerns handskakning och kapabilitetskontrollen. Installerat wheel
+verifierat från annan katalog (`memory-bridge export` + libnbd-klient).
+
+Systemexperimentet (swap under cgroup-minnesbrist, felinjektion, deadlock i
+stressvariant) redovisas i [SWAP-EXPERIMENT-RESULTAT.md](SWAP-EXPERIMENT-RESULTAT.md);
+det är ingen del av testsviten.
+
 ## 0.10.0 – fristående installerat CLI
 
 PR #3 mergad. https://github.com/jojo-swe/memory-bridge/actions/runs/40195407580

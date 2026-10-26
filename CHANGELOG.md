@@ -5,6 +5,22 @@
 - Invoke worker modules without relying on checkout-relative scripts.
 - Preserve root script compatibility and test package-only execution.
 
+## 0.11.0 – 2026-10-26
+
+- Låntagarens blockadapter `memory-bridge export`: nbdkit-plugin över
+  återhämtningslagret på privat Unix-socket (lokal O_DIRECT-kopia först,
+  verifierad givarcache, flush = fdatasync, FUA emulerad, exklusiv klient,
+  `mlockall(MCL_ONFAULT)`, minsta blockstorlek 4096).
+- `DirectFileStorage`: O_DIRECT-kopia, temporär (O_TMPFILE) eller namngiven
+  och omstartbar; avvisar tmpfs; exklusivt flock.
+- `ResilientStorage.flush()` och räknare för datakälla; en gemensam deadline
+  per begäran mot givaren; workern rapporterar sina skydd.
+- Givare: `--lab-delay-ms` (nbdkit delay-filter) och korrekt memlock-
+  förkontroll med CAP_IPC_LOCK.
+- Swap-experiment i disponibel VM (`experiments/swap/`) med förregistrerade
+  kriterier, felinjektion och rådata. Resultat: nytta ej visad; se
+  docs/SWAP-EXPERIMENT-RESULTAT.md.
+
 ## 0.9.0
 
 - Verify every remote cache block against a locally retained SHA-256 digest before exposing data.
