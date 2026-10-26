@@ -452,15 +452,42 @@ class BridgeSwap:
             found["worker"] = worker
         return found
 
+    @staticmethod
+    def abort_hung_fuse():
+        """Abort FUSE connections with pending requests (dead or deadlocked server).
+
+        Pending swap I/O then fails with EIO, which lets stuck tasks die and
+        swapoff proceed. Only connections with waiting requests are touched.
+        """
+        aborted = []
+        root = Path("/sys/fs/fuse/connections")
+        if not any(root.iterdir()) if root.exists() else True:
+            sh(["mount", "-t", "fusectl", "fusectl", str(root)], check=False)
+        for connection in root.glob("*/"):
+            if (read_text(connection / "waiting", "0") or "0").strip() != "0":
+                try:
+                    (connection / "abort").write_text("1")
+                    aborted.append(connection.name)
+                except OSError:
+                    pass
+        return aborted
+
     def teardown(self):
         errors = []
         if self.loop and self.loop in active_swaps():
-            try:
-                result = sh(["swapoff", self.loop], check=False, timeout=900)
-                if result.returncode:
+            # A deadlocked export leaves swap I/O stuck in D state; swapoff
+            # then hangs or fails. Try once, abort FUSE, try again.
+            for attempt in range(2):
+                try:
+                    result = sh(["swapoff", self.loop], check=False, timeout=300)
+                    if result.returncode == 0:
+                        break
                     errors.append("swapoff: " + result.stderr.strip())
-            except subprocess.TimeoutExpired:
-                errors.append("swapoff: timed out after 900 s")
+                except subprocess.TimeoutExpired:
+                    errors.append("swapoff: timed out after 300 s")
+                if attempt == 0:
+                    errors.append("aborted FUSE connections: " + str(self.abort_hung_fuse()))
+                    time.sleep(2)
         if self.loop:
             result = sh(["losetup", "-d", self.loop], check=False)
             if result.returncode:
