@@ -167,3 +167,46 @@ till anroparen. Vid avvikelse används lokal kopia och all fjärrgiltighet
 avvecklas. Digestlagret är begränsat till 32 byte per block. TLS och
 integritetskontrollen döljer inte klartexten från givaren. Lokal lagring
 och låntagarprocessen är fortsatt betrodda.
+
+## Blockexport och write-behind i 0.11
+
+`direct_file.py` är en lokal bakända som öppnar sin temporära fil med
+`O_DIRECT` och gör all I/O genom en förallokerad sidjusterad buffert. Ojusterade
+anrop hanteras med läs-ändra-skriv på kantsidorna. Syftet är att varken lokal
+swap eller låntagarens lokala kopia i hemlighet ska serveras ur sidcachen i
+jämförelser. `flush()` anropar `fdatasync`. Den valfria fördröjningen per I/O
+(`emulated_latency_seconds`) är en känslighetsratt för experiment och är
+aldrig på som standard.
+
+`block_export.py` exponerar valfritt `Storage` som en enda fil `volume` i ett
+FUSE-filsystem (fusepy, libfuse2), monterat med `direct_io` så att kärnans
+sidcache inte håller en andra kopia. Läs/skriv mappas 1:1 på lagret; fel ger
+`EIO`, intervallfel `EINVAL`/`ENOSPC`, storleksändring nekas. `flush`/`fsync`
+vidarebefordras till lagrets `flush()` om det finns, annars är de no-op; inget
+starkare annonseras, och fjärrcachen deltar aldrig i någon synkgaranti. Daemonen
+anropar `mlockall(MCL_CURRENT | MCL_FUTURE)` så att dess egna sidor inte kan
+swappas ut till den enhet den själv betjänar. `stats.json` i monteringen ger
+aggregerade räknare och lagrets `snapshot()`; inget innehåll eller nycklar.
+
+Blockenheten skapas utanför daemonen: `losetup --direct-io=on` över `volume`,
+därefter `mkswap`/`swapon`. Det görs enbart av `swap_lab.py` i en uttryckligen
+disponibel VM. FUSE+loop valdes för att experimentkärnan saknar NBD-klient,
+ublk och moduler; för en produkt vore en kärn- eller C-adapter nödvändig,
+bland annat för att Python allokerar minne i I/O-vägen och därför inte kan
+göras säker under global minnesbrist (se SWAP-EXPERIMENT.md).
+
+`ResilientStorage(write_behind_bytes=N)` gör fjärrspeglingen asynkron: anropet
+återvänder efter den auktoritativa lokala skrivningen, och en speglingstråd
+skickar hela block till givaren efteråt, inom en budget på N byte. Ett block
+blir läsbart från cachen först efter fjärrbekräftelse, exakt som i den
+synkrona vägen. Ett block som skrivs om medan dess äldre innehåll är under
+spegling markeras aldrig giltigt av den äldre bekräftelsen. Är budgeten full
+förblir blocket enbart lokalt (`mirror_dropped_blocks`); anroparen blockeras
+aldrig på nätverket. Fjärrfel i tråden kopplar bort cachen permanent. `flush()`
+väntar inte på speglingen: cachen är en cache. Låsordningen är alltid
+lagerlås → fjärrlås; speglingstråden håller aldrig lagerlåset under nätverks-
+anrop.
+
+`memlock_limit_applies()` i `storage.py` gör att startkontrollen mot
+`RLIMIT_MEMLOCK` hoppas över när processen har `CAP_IPC_LOCK`; `mlock` vid
+allokering är fortfarande den avgörande kontrollen.

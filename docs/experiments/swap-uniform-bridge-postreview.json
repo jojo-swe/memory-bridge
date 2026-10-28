@@ -1,0 +1,787 @@
+{
+  "environment": {
+    "timestamp": "2026-10-26T20:19:31.027421+00:00",
+    "kernel": "6.18.44-fc-v153",
+    "python": "3.12.3",
+    "executable": "/usr/bin/python3.12",
+    "nbdkit": "nbdkit 1.36.3",
+    "fusermount": "fusermount3 version: 3.14.0",
+    "losetup": "losetup from util-linux 2.39.3",
+    "meminfo": {
+      "MemTotal": "8220244 kB",
+      "MemFree": "7489408 kB",
+      "MemAvailable": "7589932 kB"
+    },
+    "cpus": 2,
+    "directory_mount": "/dev/vda ext4",
+    "active_swap_before": "Filename\t\t\t\tType\t\tSize\t\tUsed\t\tPriority\n",
+    "command": [
+      "/home/claude/memory-bridge/memory_bridge/swap_lab.py",
+      "--disposable-vm",
+      "--directory",
+      "/var/tmp/swaplab",
+      "--arms",
+      "bridge",
+      "--repetitions",
+      "3",
+      "--ram-mib",
+      "256",
+      "--dataset-mib",
+      "512",
+      "--swap-mib",
+      "768",
+      "--rounds",
+      "2",
+      "--output",
+      "docs/experiments/swap-uniform-bridge-postreview.json"
+    ]
+  },
+  "parameters": {
+    "disposable_vm": true,
+    "arms": [
+      "bridge"
+    ],
+    "repetitions": 3,
+    "order_offset": 0,
+    "ram_mib": 256,
+    "dataset_mib": 512,
+    "swap_mib": 768,
+    "rounds": 2,
+    "pattern": "uniform",
+    "seed": 42,
+    "deadline": 0,
+    "run_timeout": 1800,
+    "io_timeout": 2.0,
+    "transfer_kib": 64,
+    "directory": "/var/tmp/swaplab",
+    "disk_latency_ms": 0.0,
+    "fault": null,
+    "fault_delay": 2.0,
+    "output": "docs/experiments/swap-uniform-bridge-postreview.json"
+  },
+  "runs": [
+    {
+      "arm": "bridge",
+      "repetition": 1,
+      "order": [
+        "bridge"
+      ],
+      "swap_device": "/dev/loop0",
+      "losetup": "NAME       SIZELIMIT OFFSET AUTOCLEAR RO BACK-FILE                                                                     DIO LOG-SEC\n/dev/loop0         0      0         0  0 /var/tmp/swaplab/memory-bridge-swap-lab-t73rv4wn/mount-bridge-svzcz1k_/volume   1     512\n",
+      "proc_swaps": "Filename\t\t\t\tType\t\tSize\t\tUsed\t\tPriority\n/dev/loop0                              partition\t786428\t\t0\t\t100\n",
+      "returncode": 0,
+      "timed_out": false,
+      "wall_seconds": 155.46672721200002,
+      "workload": {
+        "dataset_mib": 512,
+        "pages": 131072,
+        "pattern": "uniform",
+        "seed": 42,
+        "rounds_requested": 2,
+        "phases": {
+          "fill": {
+            "count": 131072,
+            "total_seconds": 3.0794606069976,
+            "mean_seconds": 2.3494419914227294e-05,
+            "median_seconds": 3.5829998523695394e-06,
+            "p95_seconds": 1.1294000159978168e-05,
+            "p99_seconds": 0.00010795000025609625,
+            "max_seconds": 0.20246343600001637,
+            "retained_samples": 131072,
+            "sample_stride": 1,
+            "wall_seconds": 5.379302852999899
+          },
+          "sweep": {
+            "count": 131072,
+            "total_seconds": 17.54667004898829,
+            "mean_seconds": 0.00013387046851339943,
+            "median_seconds": 3.136000032100128e-06,
+            "p95_seconds": 0.0007674710000173945,
+            "p99_seconds": 0.0012339439999777824,
+            "max_seconds": 0.22353242600001977,
+            "retained_samples": 131072,
+            "sample_stride": 1,
+            "wall_seconds": 20.34778573800031
+          },
+          "random_reads": {
+            "count": 229376,
+            "total_seconds": 106.01870568409231,
+            "mean_seconds": 0.00046220487620366694,
+            "median_seconds": 0.00026399099988339003,
+            "p95_seconds": 0.0006767469999431341,
+            "p99_seconds": 0.001223051000124542,
+            "max_seconds": 0.40984233600011066,
+            "retained_samples": 229376,
+            "sample_stride": 1
+          },
+          "random_writes": {
+            "count": 32768,
+            "total_seconds": 14.69058151698664,
+            "mean_seconds": 0.0004483209691463208,
+            "median_seconds": 0.00026674799983084085,
+            "p95_seconds": 0.0006719969996993314,
+            "p99_seconds": 0.0012102339996999945,
+            "max_seconds": 0.1672042440000041,
+            "retained_samples": 32768,
+            "sample_stride": 1
+          },
+          "random": {
+            "wall_seconds": 128.97926304299972,
+            "touches": 262144
+          }
+        },
+        "verification_errors": 0,
+        "rounds_completed": 2,
+        "deadline_hit": false,
+        "total_wall_seconds": 154.86152352900035
+      },
+      "workload_stderr": [
+        "{\"phase\": \"fill\", \"wall_seconds\": 5.383302855999773, \"errors\": 0}",
+        "{\"phase\": \"sweep\", \"wall_seconds\": 20.355736145000265, \"errors\": 0}",
+        "{\"phase\": \"random\", \"wall_seconds\": 128.9821793899996, \"errors\": 0}"
+      ],
+      "before": {
+        "vmstat": {
+          "pswpin": 3917902,
+          "pswpout": 4993124,
+          "pgmajfault": 2213292
+        },
+        "psi": {
+          "some_total_us": 271907892,
+          "full_total_us": 126599073
+        },
+        "cgroup": {
+          "limit_bytes": 268435456,
+          "memsw_limit_bytes": 1073741824,
+          "max_usage_bytes": 0,
+          "memsw_max_usage_bytes": 0,
+          "failcnt": 0,
+          "memsw_failcnt": 0,
+          "oom_kill": 0,
+          "stat_swap_bytes": 0,
+          "stat_rss_bytes": 0,
+          "stat_pgmajfault": 0
+        },
+        "export": {
+          "export": {
+            "reads": 52,
+            "writes": 1,
+            "flushes": 3,
+            "errors": 0,
+            "read_bytes": 1335296,
+            "write_bytes": 4096,
+            "max_read_seconds": 0.0008643229998597235,
+            "max_write_seconds": 0.0004459530000531231,
+            "total_read_seconds": 0.003542913000273984,
+            "total_write_seconds": 0.0004459530000531231
+          },
+          "capacity_bytes": 805306368,
+          "storage": {
+            "closed": false,
+            "failed": false,
+            "remote_enabled": true,
+            "cached_blocks": 1,
+            "valid_bitmap_bytes": 24576,
+            "integrity_bytes": 6291456,
+            "capacity_bytes": 805306368,
+            "remote_errors": 0,
+            "write_behind_bytes": 16777216,
+            "pending_mirror_blocks": 0,
+            "mirror_dropped_blocks": 0
+          }
+        }
+      },
+      "after": {
+        "vmstat": {
+          "pswpin": 4189716,
+          "pswpout": 5339353,
+          "pgmajfault": 2366722
+        },
+        "psi": {
+          "some_total_us": 299072589,
+          "full_total_us": 137559633
+        },
+        "cgroup": {
+          "limit_bytes": 268435456,
+          "memsw_limit_bytes": 1073741824,
+          "max_usage_bytes": 268435456,
+          "memsw_max_usage_bytes": 560037888,
+          "failcnt": 347124,
+          "memsw_failcnt": 0,
+          "oom_kill": 0,
+          "stat_swap_bytes": 0,
+          "stat_rss_bytes": 0,
+          "stat_pgmajfault": 153429
+        },
+        "export": {
+          "export": {
+            "reads": 155238,
+            "writes": 136880,
+            "flushes": 3,
+            "errors": 0,
+            "read_bytes": 1114685440,
+            "write_bytes": 1418158080,
+            "max_read_seconds": 0.07823780400030955,
+            "max_write_seconds": 0.11440968999977486,
+            "total_read_seconds": 44.24667667617268,
+            "total_write_seconds": 31.86709497503307
+          },
+          "capacity_bytes": 805306368,
+          "storage": {
+            "closed": false,
+            "failed": false,
+            "remote_enabled": true,
+            "cached_blocks": 95758,
+            "valid_bitmap_bytes": 24576,
+            "integrity_bytes": 6291456,
+            "capacity_bytes": 805306368,
+            "remote_errors": 0,
+            "write_behind_bytes": 16777216,
+            "pending_mirror_blocks": 0,
+            "mirror_dropped_blocks": 41448
+          }
+        }
+      },
+      "swap_io": {
+        "pswpin": 271814,
+        "pswpout": 346229,
+        "pgmajfault": 153430
+      },
+      "psi_delta_us": {
+        "some_total_us": 27164697,
+        "full_total_us": 10960560
+      },
+      "oom_killed": false,
+      "memory": {
+        "workload_peak_rss_kib": 271380,
+        "bridge_peak_by_process_kib": {
+          "export": 108736,
+          "donor": 811052,
+          "nbd_worker": 70676
+        },
+        "bridge_peak_concurrent_rss_kib": 990464,
+        "monitor_samples": 311
+      },
+      "fault": null,
+      "dmesg": [
+        "[Mon Oct 26 21:10:51 2026] Adding 786428k swap on /dev/loop0.  Priority:100 extents:1 across:786428k SS",
+        "[Mon Oct 26 21:12:24 2026] loop0: detected capacity change from 0 to 1572864",
+        "[Mon Oct 26 21:12:24 2026] Adding 786428k swap on /dev/loop0.  Priority:100 extents:1 across:786428k SS",
+        "[Mon Oct 26 21:15:03 2026] loop0: detected capacity change from 0 to 1572864",
+        "[Mon Oct 26 21:15:03 2026] Adding 786428k swap on /dev/loop0.  Priority:100 extents:1 across:786428k SS",
+        "[Mon Oct 26 21:18:30 2026] python3.12 invoked oom-killer: gfp_mask=0xcc0(GFP_KERNEL), order=0, oom_score_adj=0",
+        "[Mon Oct 26 21:18:30 2026]  oom_kill_process.cold+0x8/0x90",
+        "[Mon Oct 26 21:18:30 2026] memory+swap: usage 262144kB, limit 262144kB, failcnt 0",
+        "[Mon Oct 26 21:18:30 2026] Memory cgroup stats for /memory-bridge-swap-lab-2290-1-noswap:",
+        "[Mon Oct 26 21:18:30 2026] swap 0",
+        "[Mon Oct 26 21:18:30 2026] swapcached 0",
+        "[Mon Oct 26 21:18:30 2026] total_swap 0",
+        "[Mon Oct 26 21:18:30 2026] total_swapcached 0",
+        "[Mon Oct 26 21:18:30 2026] [  pid  ]   uid  tgid total_vm      rss rss_anon rss_file rss_shmem pgtables_bytes swapents oom_score_adj name",
+        "[Mon Oct 26 21:18:30 2026] oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=/,mems_allowed=0,oom_memcg=/memory-bridge-swap-lab-2290-1-noswap,task_memcg=/memory-bridge-swap-lab-2290-1-noswap,task=python3.12,pid=2665,uid=0",
+        "[Mon Oct 26 21:18:30 2026] Memory cgroup out of memory: Killed process 2665 (python3.12) total-vm:548788kB, anon-rss:7680kB, file-rss:10528kB, shmem-rss:253056kB, UID:0 pgtables:580kB oom_score_adj:0",
+        "[Mon Oct 26 21:18:30 2026] loop0: detected capacity change from 0 to 1572864",
+        "[Mon Oct 26 21:18:30 2026] Adding 786428k swap on /dev/loop0.  Priority:100 extents:1 across:786428k ",
+        "[Mon Oct 26 21:19:32 2026] loop0: detected capacity change from 0 to 1572864",
+        "[Mon Oct 26 21:19:32 2026] Adding 786428k swap on /dev/loop0.  Priority:100 extents:1 across:786428k SS"
+      ],
+      "arm_notes": [
+        {
+          "swapoff_seconds": 0.017763362000096095
+        }
+      ],
+      "export_final": "{\"export\": {\"reads\": 155238, \"writes\": 136880, \"flushes\": 3, \"errors\": 0, \"read_bytes\": 1114685440, \"write_bytes\": 1418158080, \"max_read_seconds\": 0.07823780400030955, \"max_write_seconds\": 0.11440968999977486, \"total_read_seconds\": 44.24667667617268, \"total_write_seconds\": 31.86709497503307}, \"storage\": {\"closed\": false, \"failed\": false, \"remote_enabled\": true, \"cached_blocks\": 95758, \"valid_bitmap_bytes\": 24576, \"integrity_bytes\": 6291456, \"capacity_bytes\": 805306368, \"remote_errors\": 0, \"write_behind_bytes\": 16777216, \"pending_mirror_blocks\": 0, \"mirror_dropped_blocks\": 41448}}\n",
+      "export_errors": ""
+    },
+    {
+      "arm": "bridge",
+      "repetition": 2,
+      "order": [
+        "bridge"
+      ],
+      "swap_device": "/dev/loop0",
+      "losetup": "NAME       SIZELIMIT OFFSET AUTOCLEAR RO BACK-FILE                                                                     DIO LOG-SEC\n/dev/loop0         0      0         0  0 /var/tmp/swaplab/memory-bridge-swap-lab-t73rv4wn/mount-bridge-2zyh9j84/volume   1     512\n",
+      "proc_swaps": "Filename\t\t\t\tType\t\tSize\t\tUsed\t\tPriority\n/dev/loop0                              partition\t786428\t\t0\t\t100\n",
+      "returncode": 0,
+      "timed_out": false,
+      "wall_seconds": 144.01146084699985,
+      "workload": {
+        "dataset_mib": 512,
+        "pages": 131072,
+        "pattern": "uniform",
+        "seed": 42,
+        "rounds_requested": 2,
+        "phases": {
+          "fill": {
+            "count": 131072,
+            "total_seconds": 2.8696368289529346,
+            "mean_seconds": 2.189359152948711e-05,
+            "median_seconds": 3.3960000109800603e-06,
+            "p95_seconds": 7.721000201854622e-06,
+            "p99_seconds": 0.0001127440000345814,
+            "max_seconds": 0.1443654630002129,
+            "retained_samples": 131072,
+            "sample_stride": 1,
+            "wall_seconds": 5.035171423000065
+          },
+          "sweep": {
+            "count": 131072,
+            "total_seconds": 17.091845214103614,
+            "mean_seconds": 0.0001304004304054536,
+            "median_seconds": 3.328999810037203e-06,
+            "p95_seconds": 0.000758125000174914,
+            "p99_seconds": 0.0011506410000947653,
+            "max_seconds": 0.24066689600022073,
+            "retained_samples": 131072,
+            "sample_stride": 1,
+            "wall_seconds": 19.749571424999885
+          },
+          "random_reads": {
+            "count": 229376,
+            "total_seconds": 97.5048156879534,
+            "mean_seconds": 0.0004250872614744062,
+            "median_seconds": 0.000251052000294294,
+            "p95_seconds": 0.000632375999884971,
+            "p99_seconds": 0.001049760999649152,
+            "max_seconds": 0.08076219300028242,
+            "retained_samples": 229376,
+            "sample_stride": 1
+          },
+          "random_writes": {
+            "count": 32768,
+            "total_seconds": 13.08642135299442,
+            "mean_seconds": 0.00039936588601667544,
+            "median_seconds": 0.0002571850000094855,
+            "p95_seconds": 0.0006341889998111583,
+            "p99_seconds": 0.000998805999643082,
+            "max_seconds": 0.056036716000107845,
+            "retained_samples": 32768,
+            "sample_stride": 1
+          },
+          "random": {
+            "wall_seconds": 118.543622701,
+            "touches": 262144
+          }
+        },
+        "verification_errors": 0,
+        "rounds_completed": 2,
+        "deadline_hit": false,
+        "total_wall_seconds": 143.44552662499973
+      },
+      "workload_stderr": [
+        "{\"phase\": \"fill\", \"wall_seconds\": 5.038371575999918, \"errors\": 0}",
+        "{\"phase\": \"sweep\", \"wall_seconds\": 19.753878201000134, \"errors\": 0}",
+        "{\"phase\": \"random\", \"wall_seconds\": 118.54588517100001, \"errors\": 0}"
+      ],
+      "before": {
+        "vmstat": {
+          "pswpin": 4189716,
+          "pswpout": 5339353,
+          "pgmajfault": 2366722
+        },
+        "psi": {
+          "some_total_us": 299072589,
+          "full_total_us": 137559633
+        },
+        "cgroup": {
+          "limit_bytes": 268435456,
+          "memsw_limit_bytes": 1073741824,
+          "max_usage_bytes": 0,
+          "memsw_max_usage_bytes": 0,
+          "failcnt": 0,
+          "memsw_failcnt": 0,
+          "oom_kill": 0,
+          "stat_swap_bytes": 0,
+          "stat_rss_bytes": 0,
+          "stat_pgmajfault": 0
+        },
+        "export": {
+          "export": {
+            "reads": 52,
+            "writes": 1,
+            "flushes": 3,
+            "errors": 0,
+            "read_bytes": 1335296,
+            "write_bytes": 4096,
+            "max_read_seconds": 0.0009865669999271631,
+            "max_write_seconds": 0.00034303499978705077,
+            "total_read_seconds": 0.0032565379997322452,
+            "total_write_seconds": 0.00034303499978705077
+          },
+          "capacity_bytes": 805306368,
+          "storage": {
+            "closed": false,
+            "failed": false,
+            "remote_enabled": true,
+            "cached_blocks": 1,
+            "valid_bitmap_bytes": 24576,
+            "integrity_bytes": 6291456,
+            "capacity_bytes": 805306368,
+            "remote_errors": 0,
+            "write_behind_bytes": 16777216,
+            "pending_mirror_blocks": 0,
+            "mirror_dropped_blocks": 0
+          }
+        }
+      },
+      "after": {
+        "vmstat": {
+          "pswpin": 4461328,
+          "pswpout": 5684756,
+          "pgmajfault": 2520251
+        },
+        "psi": {
+          "some_total_us": 323038795,
+          "full_total_us": 147450069
+        },
+        "cgroup": {
+          "limit_bytes": 268435456,
+          "memsw_limit_bytes": 1073741824,
+          "max_usage_bytes": 268435456,
+          "memsw_max_usage_bytes": 560029696,
+          "failcnt": 345731,
+          "memsw_failcnt": 0,
+          "oom_kill": 0,
+          "stat_swap_bytes": 0,
+          "stat_rss_bytes": 0,
+          "stat_pgmajfault": 153529
+        },
+        "export": {
+          "export": {
+            "reads": 155298,
+            "writes": 132280,
+            "flushes": 3,
+            "errors": 0,
+            "read_bytes": 1113858048,
+            "write_bytes": 1414774784,
+            "max_read_seconds": 0.02167662300007578,
+            "max_write_seconds": 0.015282298999863997,
+            "total_read_seconds": 42.29751696193853,
+            "total_write_seconds": 29.184473135016106
+          },
+          "capacity_bytes": 805306368,
+          "storage": {
+            "closed": false,
+            "failed": false,
+            "remote_enabled": true,
+            "cached_blocks": 94392,
+            "valid_bitmap_bytes": 24576,
+            "integrity_bytes": 6291456,
+            "capacity_bytes": 805306368,
+            "remote_errors": 0,
+            "write_behind_bytes": 16777216,
+            "pending_mirror_blocks": 0,
+            "mirror_dropped_blocks": 42121
+          }
+        }
+      },
+      "swap_io": {
+        "pswpin": 271612,
+        "pswpout": 345403,
+        "pgmajfault": 153529
+      },
+      "psi_delta_us": {
+        "some_total_us": 23966206,
+        "full_total_us": 9890436
+      },
+      "oom_killed": false,
+      "memory": {
+        "workload_peak_rss_kib": 271448,
+        "bridge_peak_by_process_kib": {
+          "export": 112356,
+          "donor": 810940,
+          "nbd_worker": 70808
+        },
+        "bridge_peak_concurrent_rss_kib": 994100,
+        "monitor_samples": 288
+      },
+      "fault": null,
+      "dmesg": [
+        "[Mon Oct 26 21:12:24 2026] Adding 786428k swap on /dev/loop0.  Priority:100 extents:1 across:786428k SS",
+        "[Mon Oct 26 21:15:03 2026] loop0: detected capacity change from 0 to 1572864",
+        "[Mon Oct 26 21:15:03 2026] Adding 786428k swap on /dev/loop0.  Priority:100 extents:1 across:786428k SS",
+        "[Mon Oct 26 21:18:30 2026] python3.12 invoked oom-killer: gfp_mask=0xcc0(GFP_KERNEL), order=0, oom_score_adj=0",
+        "[Mon Oct 26 21:18:30 2026]  oom_kill_process.cold+0x8/0x90",
+        "[Mon Oct 26 21:18:30 2026] memory+swap: usage 262144kB, limit 262144kB, failcnt 0",
+        "[Mon Oct 26 21:18:30 2026] Memory cgroup stats for /memory-bridge-swap-lab-2290-1-noswap:",
+        "[Mon Oct 26 21:18:30 2026] swap 0",
+        "[Mon Oct 26 21:18:30 2026] swapcached 0",
+        "[Mon Oct 26 21:18:30 2026] total_swap 0",
+        "[Mon Oct 26 21:18:30 2026] total_swapcached 0",
+        "[Mon Oct 26 21:18:30 2026] [  pid  ]   uid  tgid total_vm      rss rss_anon rss_file rss_shmem pgtables_bytes swapents oom_score_adj name",
+        "[Mon Oct 26 21:18:30 2026] oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=/,mems_allowed=0,oom_memcg=/memory-bridge-swap-lab-2290-1-noswap,task_memcg=/memory-bridge-swap-lab-2290-1-noswap,task=python3.12,pid=2665,uid=0",
+        "[Mon Oct 26 21:18:30 2026] Memory cgroup out of memory: Killed process 2665 (python3.12) total-vm:548788kB, anon-rss:7680kB, file-rss:10528kB, shmem-rss:253056kB, UID:0 pgtables:580kB oom_score_adj:0",
+        "[Mon Oct 26 21:18:30 2026] loop0: detected capacity change from 0 to 1572864",
+        "[Mon Oct 26 21:18:30 2026] Adding 786428k swap on /dev/loop0.  Priority:100 extents:1 across:786428k ",
+        "[Mon Oct 26 21:19:32 2026] loop0: detected capacity change from 0 to 1572864",
+        "[Mon Oct 26 21:19:32 2026] Adding 786428k swap on /dev/loop0.  Priority:100 extents:1 across:786428k SS",
+        "[Mon Oct 26 21:22:09 2026] loop0: detected capacity change from 0 to 1572864",
+        "[Mon Oct 26 21:22:09 2026] Adding 786428k swap on /dev/loop0.  Priority:100 extents:1 across:786428k SS"
+      ],
+      "arm_notes": [
+        {
+          "swapoff_seconds": 0.023226888999943185
+        }
+      ],
+      "export_final": "{\"export\": {\"reads\": 155298, \"writes\": 132280, \"flushes\": 3, \"errors\": 0, \"read_bytes\": 1113858048, \"write_bytes\": 1414774784, \"max_read_seconds\": 0.02167662300007578, \"max_write_seconds\": 0.015282298999863997, \"total_read_seconds\": 42.29751696193853, \"total_write_seconds\": 29.184473135016106}, \"storage\": {\"closed\": false, \"failed\": false, \"remote_enabled\": true, \"cached_blocks\": 94392, \"valid_bitmap_bytes\": 24576, \"integrity_bytes\": 6291456, \"capacity_bytes\": 805306368, \"remote_errors\": 0, \"write_behind_bytes\": 16777216, \"pending_mirror_blocks\": 0, \"mirror_dropped_blocks\": 42121}}\n",
+      "export_errors": ""
+    },
+    {
+      "arm": "bridge",
+      "repetition": 3,
+      "order": [
+        "bridge"
+      ],
+      "swap_device": "/dev/loop0",
+      "losetup": "NAME       SIZELIMIT OFFSET AUTOCLEAR RO BACK-FILE                                                                     DIO LOG-SEC\n/dev/loop0         0      0         0  0 /var/tmp/swaplab/memory-bridge-swap-lab-t73rv4wn/mount-bridge-iiqu5xm7/volume   1     512\n",
+      "proc_swaps": "Filename\t\t\t\tType\t\tSize\t\tUsed\t\tPriority\n/dev/loop0                              partition\t786428\t\t0\t\t100\n",
+      "returncode": 0,
+      "timed_out": false,
+      "wall_seconds": 150.136944244,
+      "workload": {
+        "dataset_mib": 512,
+        "pages": 131072,
+        "pattern": "uniform",
+        "seed": 42,
+        "rounds_requested": 2,
+        "phases": {
+          "fill": {
+            "count": 131072,
+            "total_seconds": 2.628663147111638,
+            "mean_seconds": 2.0055108239071945e-05,
+            "median_seconds": 3.4360000427113846e-06,
+            "p95_seconds": 8.50000014906982e-06,
+            "p99_seconds": 0.00013078099982521962,
+            "max_seconds": 0.056200371000159066,
+            "retained_samples": 131072,
+            "sample_stride": 1,
+            "wall_seconds": 5.069718276999993
+          },
+          "sweep": {
+            "count": 131072,
+            "total_seconds": 18.362192844916535,
+            "mean_seconds": 0.0001400924136727641,
+            "median_seconds": 3.4679997042985633e-06,
+            "p95_seconds": 0.0008162139997693885,
+            "p99_seconds": 0.0012911690000692033,
+            "max_seconds": 0.3025324269997327,
+            "retained_samples": 131072,
+            "sample_stride": 1,
+            "wall_seconds": 20.955206800999804
+          },
+          "random_reads": {
+            "count": 229376,
+            "total_seconds": 100.76080391102914,
+            "mean_seconds": 0.0004392822436132339,
+            "median_seconds": 0.000244311999722413,
+            "p95_seconds": 0.0006509269996968214,
+            "p99_seconds": 0.0011960570000155712,
+            "max_seconds": 0.22379541500004052,
+            "retained_samples": 229376,
+            "sample_stride": 1
+          },
+          "random_writes": {
+            "count": 32768,
+            "total_seconds": 14.57499400502138,
+            "mean_seconds": 0.00044479351821964663,
+            "median_seconds": 0.0002506089999769756,
+            "p95_seconds": 0.0006499860000985791,
+            "p99_seconds": 0.001208009000038146,
+            "max_seconds": 0.08611014099960812,
+            "retained_samples": 32768,
+            "sample_stride": 1
+          },
+          "random": {
+            "wall_seconds": 123.36183392400017,
+            "touches": 262144
+          }
+        },
+        "verification_errors": 0,
+        "rounds_completed": 2,
+        "deadline_hit": false,
+        "total_wall_seconds": 149.58499949899988
+      },
+      "workload_stderr": [
+        "{\"phase\": \"fill\", \"wall_seconds\": 5.077040693000072, \"errors\": 0}",
+        "{\"phase\": \"sweep\", \"wall_seconds\": 20.959456988000056, \"errors\": 0}",
+        "{\"phase\": \"random\", \"wall_seconds\": 123.36788569500004, \"errors\": 0}"
+      ],
+      "before": {
+        "vmstat": {
+          "pswpin": 4461328,
+          "pswpout": 5684756,
+          "pgmajfault": 2520251
+        },
+        "psi": {
+          "some_total_us": 323038795,
+          "full_total_us": 147450069
+        },
+        "cgroup": {
+          "limit_bytes": 268435456,
+          "memsw_limit_bytes": 1073741824,
+          "max_usage_bytes": 0,
+          "memsw_max_usage_bytes": 0,
+          "failcnt": 0,
+          "memsw_failcnt": 0,
+          "oom_kill": 0,
+          "stat_swap_bytes": 0,
+          "stat_rss_bytes": 0,
+          "stat_pgmajfault": 0
+        },
+        "export": {
+          "export": {
+            "reads": 52,
+            "writes": 1,
+            "flushes": 3,
+            "errors": 0,
+            "read_bytes": 1335296,
+            "write_bytes": 4096,
+            "max_read_seconds": 0.0007381140003417386,
+            "max_write_seconds": 0.0002267620002385229,
+            "total_read_seconds": 0.0029252489980535756,
+            "total_write_seconds": 0.0002267620002385229
+          },
+          "capacity_bytes": 805306368,
+          "storage": {
+            "closed": false,
+            "failed": false,
+            "remote_enabled": true,
+            "cached_blocks": 1,
+            "valid_bitmap_bytes": 24576,
+            "integrity_bytes": 6291456,
+            "capacity_bytes": 805306368,
+            "remote_errors": 0,
+            "write_behind_bytes": 16777216,
+            "pending_mirror_blocks": 0,
+            "mirror_dropped_blocks": 0
+          }
+        }
+      },
+      "after": {
+        "vmstat": {
+          "pswpin": 4732682,
+          "pswpout": 6030398,
+          "pgmajfault": 2673644
+        },
+        "psi": {
+          "some_total_us": 348361093,
+          "full_total_us": 157560299
+        },
+        "cgroup": {
+          "limit_bytes": 268435456,
+          "memsw_limit_bytes": 1073741824,
+          "max_usage_bytes": 268435456,
+          "memsw_max_usage_bytes": 560033792,
+          "failcnt": 345868,
+          "memsw_failcnt": 0,
+          "oom_kill": 0,
+          "stat_swap_bytes": 0,
+          "stat_rss_bytes": 0,
+          "stat_pgmajfault": 153392
+        },
+        "export": {
+          "export": {
+            "reads": 155133,
+            "writes": 136809,
+            "flushes": 3,
+            "errors": 0,
+            "read_bytes": 1112801280,
+            "write_bytes": 1415753728,
+            "max_read_seconds": 0.14609371400001692,
+            "max_write_seconds": 0.049867749999975786,
+            "total_read_seconds": 43.57218079898121,
+            "total_write_seconds": 30.120467326004018
+          },
+          "capacity_bytes": 805306368,
+          "storage": {
+            "closed": false,
+            "failed": false,
+            "remote_enabled": true,
+            "cached_blocks": 99247,
+            "valid_bitmap_bytes": 24576,
+            "integrity_bytes": 6291456,
+            "capacity_bytes": 805306368,
+            "remote_errors": 0,
+            "write_behind_bytes": 16777216,
+            "pending_mirror_blocks": 0,
+            "mirror_dropped_blocks": 46952
+          }
+        }
+      },
+      "swap_io": {
+        "pswpin": 271354,
+        "pswpout": 345642,
+        "pgmajfault": 153393
+      },
+      "psi_delta_us": {
+        "some_total_us": 25322298,
+        "full_total_us": 10110230
+      },
+      "oom_killed": false,
+      "memory": {
+        "workload_peak_rss_kib": 271536,
+        "bridge_peak_by_process_kib": {
+          "export": 113776,
+          "donor": 810856,
+          "nbd_worker": 70676
+        },
+        "bridge_peak_concurrent_rss_kib": 995264,
+        "monitor_samples": 300
+      },
+      "fault": null,
+      "dmesg": [
+        "[Mon Oct 26 21:15:03 2026] Adding 786428k swap on /dev/loop0.  Priority:100 extents:1 across:786428k SS",
+        "[Mon Oct 26 21:18:30 2026] python3.12 invoked oom-killer: gfp_mask=0xcc0(GFP_KERNEL), order=0, oom_score_adj=0",
+        "[Mon Oct 26 21:18:30 2026]  oom_kill_process.cold+0x8/0x90",
+        "[Mon Oct 26 21:18:30 2026] memory+swap: usage 262144kB, limit 262144kB, failcnt 0",
+        "[Mon Oct 26 21:18:30 2026] Memory cgroup stats for /memory-bridge-swap-lab-2290-1-noswap:",
+        "[Mon Oct 26 21:18:30 2026] swap 0",
+        "[Mon Oct 26 21:18:30 2026] swapcached 0",
+        "[Mon Oct 26 21:18:30 2026] total_swap 0",
+        "[Mon Oct 26 21:18:30 2026] total_swapcached 0",
+        "[Mon Oct 26 21:18:30 2026] [  pid  ]   uid  tgid total_vm      rss rss_anon rss_file rss_shmem pgtables_bytes swapents oom_score_adj name",
+        "[Mon Oct 26 21:18:30 2026] oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=/,mems_allowed=0,oom_memcg=/memory-bridge-swap-lab-2290-1-noswap,task_memcg=/memory-bridge-swap-lab-2290-1-noswap,task=python3.12,pid=2665,uid=0",
+        "[Mon Oct 26 21:18:30 2026] Memory cgroup out of memory: Killed process 2665 (python3.12) total-vm:548788kB, anon-rss:7680kB, file-rss:10528kB, shmem-rss:253056kB, UID:0 pgtables:580kB oom_score_adj:0",
+        "[Mon Oct 26 21:18:30 2026] loop0: detected capacity change from 0 to 1572864",
+        "[Mon Oct 26 21:18:30 2026] Adding 786428k swap on /dev/loop0.  Priority:100 extents:1 across:786428k ",
+        "[Mon Oct 26 21:19:32 2026] loop0: detected capacity change from 0 to 1572864",
+        "[Mon Oct 26 21:19:32 2026] Adding 786428k swap on /dev/loop0.  Priority:100 extents:1 across:786428k SS",
+        "[Mon Oct 26 21:22:09 2026] loop0: detected capacity change from 0 to 1572864",
+        "[Mon Oct 26 21:22:09 2026] Adding 786428k swap on /dev/loop0.  Priority:100 extents:1 across:786428k SS",
+        "[Mon Oct 26 21:24:35 2026] loop0: detected capacity change from 0 to 1572864",
+        "[Mon Oct 26 21:24:35 2026] Adding 786428k swap on /dev/loop0.  Priority:100 extents:1 across:786428k SS"
+      ],
+      "arm_notes": [
+        {
+          "swapoff_seconds": 0.02403364900010274
+        }
+      ],
+      "export_final": "{\"export\": {\"reads\": 155133, \"writes\": 136809, \"flushes\": 3, \"errors\": 0, \"read_bytes\": 1112801280, \"write_bytes\": 1415753728, \"max_read_seconds\": 0.14609371400001692, \"max_write_seconds\": 0.049867749999975786, \"total_read_seconds\": 43.57218079898121, \"total_write_seconds\": 30.120467326004018}, \"storage\": {\"closed\": false, \"failed\": false, \"remote_enabled\": true, \"cached_blocks\": 99247, \"valid_bitmap_bytes\": 24576, \"integrity_bytes\": 6291456, \"capacity_bytes\": 805306368, \"remote_errors\": 0, \"write_behind_bytes\": 16777216, \"pending_mirror_blocks\": 0, \"mirror_dropped_blocks\": 46952}}\n",
+      "export_errors": ""
+    }
+  ],
+  "cleanup_failures": [],
+  "active_swap_after": "Filename\t\t\t\tType\t\tSize\t\tUsed\t\tPriority\n",
+  "loop_devices_after": "",
+  "summary": {
+    "bridge": {
+      "runs": 3,
+      "completed": 3,
+      "oom_killed": 0,
+      "died_other": 0,
+      "verification_errors": 0,
+      "random_wall_median_seconds": 123.36183392400017,
+      "random_wall_min_seconds": 118.543622701,
+      "random_wall_max_seconds": 128.97926304299972,
+      "total_wall_median_seconds": 149.58499949899988,
+      "random_read_p99_median_seconds": 0.0011960570000155712,
+      "rounds_completed": [
+        2,
+        2,
+        2
+      ],
+      "pswpin_median": 271612,
+      "pswpout_median": 345642
+    }
+  }
+}

@@ -1,0 +1,15 @@
+# 2026-10-26T21:19:39Z kernel 6.18.44-fc-v153 vm.page-cluster=3 nbdkit 1.36.3 libnbd 1.20.0 commit 5304552
+libnbd direct -> python plugin donor     n=2000 size=  4096 median=  131.9us p99=  307.8us
+libnbd direct -> python plugin donor     n=2000 size= 32768 median=  273.2us p99=  414.0us
+libnbd direct -> nbdkit memory plugin    n=2000 size=  4096 median=  100.8us p99=  199.4us
+libnbd direct -> nbdkit memory plugin    n=2000 size= 32768 median=  213.5us p99=  333.7us
+RemoteNBDStorage (worker hop)            n=2000 size=  4096 median=  234.8us p99=  392.0us
+RemoteNBDStorage (worker hop)            n=2000 size= 32768 median=  398.7us p99=  953.3us
+ResilientStorage cached read (+sha256)   n=2000 size=  4096 median=  240.4us p99=  352.5us
+ResilientStorage cached read (+sha256)   n=2000 size= 32768 median=  513.6us p99= 1296.5us
+DirectFileStorage O_DIRECT read          n=2000 size=  4096 median=   56.2us p99=  129.8us
+DirectFileStorage O_DIRECT read          n=2000 size= 32768 median=   86.6us p99=  169.9us
+DirectFileStorage O_DIRECT write         n=2000 size=  4096 median=   71.6us p99=  170.8us
+ResilientStorage write (local+mirror)    n=2000 size=  4096 median=  437.8us p99=  878.4us
+ResilientStorage write (local+mirror)    n=2000 size= 32768 median=  702.8us p99= 1185.6us
+socketpair echo, two Python processes    n=3000 size=  4096 median=   75.9us p99=  197.3us

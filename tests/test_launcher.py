@@ -21,8 +21,11 @@ class LauncherTests(unittest.TestCase):
             self.assertFalse(path.exists())
 
     def test_memlock_failure_precedes_key_access(self):
+        # The limit only binds without CAP_IPC_LOCK; pin that so a root runner
+        # exercises the same refusal path instead of launching nbdkit.
         with patch("sys.argv", ["bridge.py", "donor", "--key", "unused", "--size-mib", "1"]), \
              patch("resource.getrlimit", return_value=(4096, 4096)), \
+             patch("memory_bridge.launcher.memlock_limit_applies", return_value=True), \
              patch("bridge.private_key") as key, redirect_stderr(io.StringIO()):
             with self.assertRaises(SystemExit):
                 main()

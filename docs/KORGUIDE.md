@@ -90,3 +90,49 @@ kontrollerar den i en ny process utan nätverk. Filerna är beständiga och mås
 raderas av dig när testet är klart. Detta är ett annat backend än labbets
 temporära fil och har andra skrivkostnader; jämför inte deras resultat som
 om de hade samma beständighetskrav. Fullständiga begränsningar finns i README.
+
+## Blockexport och swap-experiment i 0.11
+
+**Kör aldrig detta på din vardagsdator.** `swap-lab` skapar swap, loop-enheter,
+FUSE-monteringar och cgroups och vägrar starta om swap redan är aktivt, utan
+root eller utan flaggan `--disposable-vm`. Använd en VM du kan kasta.
+
+Beroenden utöver NBD-paketen:
+
+```bash
+sudo apt-get install fuse3 libfuse2t64 iproute2
+/usr/bin/python3 -m pip install --break-system-packages fusepy
+```
+
+Enbart blockexport (ingen swap, ingen root behövs för själva monteringen):
+
+```bash
+mkdir /tmp/mb-mount
+/usr/bin/python3 -m memory_bridge block-export /tmp/mb-mount --size-mib 64 --directory /var/tmp
+# i en annan terminal: filen /tmp/mb-mount/volume är lagret, /tmp/mb-mount/stats.json visar räknare
+fusermount3 -u /tmp/mb-mount
+```
+
+Lägg till `--key session.psk --host GIVARE --port 10809` för att spegla till en
+ny givare; `--write-behind-mib 0` ger synkron spegling, standard är 16 MiB
+asynkron budget. `--backing persistent --path lager.db --create` ger den
+beständiga SQLite-bakändan.
+
+Hela experimentet, som root i en disponibel VM:
+
+```bash
+sudo /usr/bin/python3 -m memory_bridge swap-lab --disposable-vm \
+  --arms noswap,local-swap,fuse-local,bridge,bridge-sync,more-ram \
+  --repetitions 3 --ram-mib 256 --dataset-mib 512 --swap-mib 768 --rounds 2 \
+  --directory /var/tmp --output resultat.json
+```
+
+Körordningen roteras per upprepning. `--pattern hotset` ger 80/20-lokalitet,
+`--fault frozen|dead|socket` injicerar ett givarfel i `bridge`-armen när den
+slumpmässiga fasen har startat, och `--disk-latency-ms` lägger emulerad
+disklatens på FUSE-armarna (endast för att hitta brytpunkten mot lokal disk;
+kombinera inte med `local-swap`). Rådata skrivs som JSON efter varje delkörning.
+Allt städas före rapporten; kontrollera ändå `/proc/swaps`, `losetup -l` och
+`/sys/fs/cgroup/memory` efteråt. `memory-bridge swap-report fil1.json fil2.json`
+sammanställer en eller flera rapporter till Markdown-tabeller. Resultat och
+tolkning: [SWAP-RESULTAT.md](SWAP-RESULTAT.md).

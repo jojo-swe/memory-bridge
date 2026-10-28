@@ -26,7 +26,8 @@ class StandalonePackageTests(unittest.TestCase):
                               env=self.environment, capture_output=True, text=True, timeout=timeout)
 
     def test_all_installed_commands_have_help(self):
-        for command in ('lab', 'compare', 'benchmark', 'recover', 'checkpoint', 'donor', 'keygen'):
+        for command in ('lab', 'compare', 'benchmark', 'recover', 'checkpoint', 'donor', 'keygen',
+                        'block-export', 'swap-lab', 'pressure-workload', 'swap-report'):
             with self.subTest(command=command):
                 result = self.command(command, '--help')
                 self.assertEqual(result.returncode, 0, result.stderr)

@@ -54,7 +54,13 @@ class MemoryTests(unittest.TestCase):
 
     def test_lock_failure_is_fatal(self):
         # A separate process can lower its limit without affecting this runner.
-        code = "import resource; resource.setrlimit(resource.RLIMIT_MEMLOCK,(0,0)); from ram_plugin import LockedMemory; LockedMemory(4096)"
+        # CAP_IPC_LOCK (root) bypasses RLIMIT_MEMLOCK, so a privileged runner
+        # first drops to an unprivileged uid; the invariant under test is the
+        # same: a refused mlock must be fatal, never a silent unlocked fallback.
+        code = ("import os, resource\n"
+                "if os.geteuid() == 0: os.setgid(65534); os.setuid(65534)\n"
+                "resource.setrlimit(resource.RLIMIT_MEMLOCK,(0,0))\n"
+                "from ram_plugin import LockedMemory; LockedMemory(4096)")
         result = subprocess.run([sys.executable, "-c", code], capture_output=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn(b"Cannot lock RAM", result.stderr)

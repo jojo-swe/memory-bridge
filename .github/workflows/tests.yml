@@ -13,11 +13,13 @@ jobs:
       - name: Install NBD integration dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y nbdkit nbdkit-plugin-python python3-libnbd
+          sudo apt-get install -y nbdkit nbdkit-plugin-python python3-libnbd fuse3 libfuse2t64
+          /usr/bin/python3 -m pip install --break-system-packages fusepy
       - name: Verify framework and real TLS/NBD integration
         run: |
           ulimit -l
-          /usr/bin/python3 -c 'import nbd'
+          /usr/bin/python3 -c 'import nbd, fuse'
+          ls -l /dev/fuse
           nbdkit python --dump-plugin
           /usr/bin/python3 run_tests.py --require-integration
           /usr/bin/python3 -m memory_bridge demo
