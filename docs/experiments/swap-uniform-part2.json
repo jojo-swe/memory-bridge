@@ -16,7 +16,7 @@
     "directory_mount": "/dev/vda ext4",
     "active_swap_before": "Filename\t\t\t\tType\t\tSize\t\tUsed\t\tPriority\n",
     "command": [
-      "/home/claude/memory-bridge/memory_bridge/swap_lab.py",
+      "/home/<user>/memory-bridge/memory_bridge/swap_lab.py",
       "--disposable-vm",
       "--arms",
       "noswap,local-swap,fuse-local,bridge,bridge-sync,more-ram",

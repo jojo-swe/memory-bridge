@@ -37,14 +37,14 @@ På givaren, skapa en privat nyckel och starta en ny export:
 
 ```bash
 /usr/bin/python3 bridge.py keygen session.psk
-/usr/bin/python3 bridge.py donor --key session.psk --size-mib 1 --bind 192.168.1.50
+/usr/bin/python3 bridge.py donor --key session.psk --size-mib 1 --bind <din-server-ip>
 ```
 
 Använd datorns riktiga LAN-adress. Kopiera nyckeln till låntagaren via en
 betrodd kanal, sätt rättigheter `chmod 600 session.psk`. Kör på låntagaren:
 
 ```bash
-/usr/bin/python3 compare_benchmark.py --host 192.168.1.50 --key session.psk --size-mib 1 --request-kib 64
+/usr/bin/python3 compare_benchmark.py --host <din-server-ip> --key session.psk --size-mib 1 --request-kib 64
 ```
 
 Givaren är avsiktligt engångsbaserad: starta om den före varje försök.
@@ -56,7 +56,7 @@ till låntagaren; publicera inte exporten mot internet.
 Starta en ny givare. Kör följande och stäng givaren när klienten ber om det:
 
 ```bash
-/usr/bin/python3 recovery_client.py --host 192.168.1.50 --key session.psk --size-mib 1 --pause-for-fault
+/usr/bin/python3 recovery_client.py --host <din-server-ip> --key session.psk --size-mib 1 --pause-for-fault
 ```
 
 `fallback_observed: true` och `verified: true` visar att testdata kunde läsas
