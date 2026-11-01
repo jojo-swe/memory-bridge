@@ -122,13 +122,13 @@ session.psk` på mottagaren. Lägg inte nyckeln i Git eller meddelanden.
 På givaren, ersätt exempeladressen med dess faktiska LAN-adress:
 
 ```bash
-/usr/bin/python3 bridge.py donor --key session.psk --size-mib 4 --bind 192.168.1.50
+/usr/bin/python3 bridge.py donor --key session.psk --size-mib 4 --bind <din-server-ip>
 ```
 
 På låntagaren:
 
 ```bash
-/usr/bin/python3 benchmark.py --host 192.168.1.50 --key session.psk --pages 256 --timeout 30
+/usr/bin/python3 benchmark.py --host <din-server-ip> --key session.psk --pages 256 --timeout 30
 ```
 
 Om en brandvägg används behöver låntagaren nå givarens TCP-port 10809. Begränsa

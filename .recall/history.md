@@ -26,19 +26,19 @@ Read them there (those copies are read-only — copy a file elsewhere to modify 
 
 **Claude:** Jag tar över Memory Bridge: hämtar senaste main, läser dokumentationen, kör befintliga tester och inventerar miljön innan jag bygger swap-experimentet. Jag rapporterar löpande och levererar en PR med mätresultat.
   - `mcp__claude-code-remote__add_repo: push`
-  - `Bash: git clone --depth 1 https://github.com/jojo-swe/memory-bridge /home/claude/memory-bridge 2>&1 | tail -3 && git -C /home/claude/memory-bridge rev-parse HEAD && l`
+  - `Bash: git clone --depth 1 https://github.com/jojo-swe/memory-bridge /home/<user>/memory-bridge 2>&1 | tail -3 && git -C /home/<user>/memory-bridge rev-parse HEAD && l`
   - `ToolSearch: select:register_repo_root`
   - `mcp__claude-code-remote__register_repo_root: jojo-swe`
 
 **Claude:** Repot är klonat. Nu läser jag dokumentationen och kodstrukturen.
-  - `Bash: cd /home/claude/memory-bridge && ls docs memory_bridge tests config; ls -a | grep -i -E "agents|claude"; cat pyproject.toml; wc -l memory_bridge/*.py *.py tests`
+  - `Bash: cd /home/<user>/memory-bridge && ls docs memory_bridge tests config; ls -a | grep -i -E "agents|claude"; cat pyproject.toml; wc -l memory_bridge/*.py *.py tests`
   - `Bash: cat docs/NULAGE-OCH-NASTA-STEG.md docs/ARKITEKTUR.md`
   - `Bash: cat docs/KORGUIDE.md docs/TESTRESULTAT.md docs/EXPERIMENTPLAN.md README.md CONTRIBUTING.md`
-  - `Read: /root/.claude/projects/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/tool-results/b0l5kccpp.txt`
+  - `Read: /root/.claude/projects/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/tool-results/b0l5kccpp.txt`
   - `Bash: cat memory_bridge/resilient.py memory_bridge/storage.py memory_bridge/local_disk.py`
   - `Bash: cat memory_bridge/remote_nbd.py memory_bridge/nbd_worker.py memory_bridge/nbd_plugin.py memory_bridge/launcher.py`
   - `Bash: cat memory_bridge/core.py memory_bridge/persistent.py memory_bridge/lab_cli.py memory_bridge/__main__.py memory_bridge/recovery_cli.py`
-  - `Read: /root/.claude/projects/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/tool-results/bxwlvb6r1.txt`
+  - `Read: /root/.claude/projects/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/tool-results/bxwlvb6r1.txt`
   - `Bash: id; python3 --version; which nbdkit nbd-client qemu-system-x86_64 qemu-img kvm virsh docker podman unshare; ls -l /dev/kvm /dev/nbd0 2>&1; lsmod 2>/dev/null | h`
   - `Bash: ls /dev | head -50; ls /lib/modules 2>&1; which modprobe swapon mkswap losetup; cat /proc/swaps; zcat /proc/config.gz 2>/dev/null | grep -E "CONFIG_BLK_DEV_NBD|`
   - `Bash: zcat /proc/config.gz | grep -E "CONFIG_BLK_DEV_UBLK|CONFIG_FUSE_FS|CONFIG_CUSE|CONFIG_TCM|CONFIG_BLK_DEV_DM|CONFIG_DM_|CONFIG_NET_9P|CONFIG_VIRTIO_BLK|CONFIG_SC`
@@ -49,14 +49,14 @@ Read them there (those copies are read-only — copy a file elsewhere to modify 
   - `Bash: git checkout -b feature/swap-experiment-block-export -q && ulimit -l && /usr/bin/python3.12 run_tests.py --require-integration 2>&1 | tail -8`
   - `Bash: sed -n 40,70p tests/test_memory.py`
   - `Bash: /usr/bin/python3.12 -m pip install --break-system-packages -q fusepy 2>&1 | tail -2; /usr/bin/python3.12 -c "import fuse; print(fuse.__version__, fuse._libfuse)`
-  - `Write: /tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/proto/fuse_proto.py`
-  - `Bash: cd /tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/proto && mkdir -p mnt && /usr/bin/python3.12 fuse_proto.py mnt 64 2>fuse.err & sle`
-  - `Bash: cd /tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/proto && cat fuse.err; ls -la; mount | grep fuse; ps aux | grep fuse_proto | head`
-  - `Bash: cd /tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/proto && ls -l mnt && dd if=/dev/zero of=mnt/volume bs=64k count=4 conv=notrunc 2>`
-  - `Write: /tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/proto/hog.py`
-  - `Bash: cd /tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/proto && CG=/sys/fs/cgroup/memory/mb-proto && mkdir -p $CG && echo $((32*1024*1024`
-  - `Bash: cd /tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/proto && CG=/sys/fs/cgroup/memory/mb-proto && (echo $BASHPID > $CG/cgroup.procs; c`
-  - `Bash: cd /tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/proto && swapoff /dev/loop0 && losetup -d /dev/loop0 && fusermount3 -u mnt && slee`
+  - `Write: /tmp/claude-0/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/proto/fuse_proto.py`
+  - `Bash: cd /tmp/claude-0/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/proto && mkdir -p mnt && /usr/bin/python3.12 fuse_proto.py mnt 64 2>fuse.err & sle`
+  - `Bash: cd /tmp/claude-0/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/proto && cat fuse.err; ls -la; mount | grep fuse; ps aux | grep fuse_proto | head`
+  - `Bash: cd /tmp/claude-0/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/proto && ls -l mnt && dd if=/dev/zero of=mnt/volume bs=64k count=4 conv=notrunc 2>`
+  - `Write: /tmp/claude-0/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/proto/hog.py`
+  - `Bash: cd /tmp/claude-0/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/proto && CG=/sys/fs/cgroup/memory/mb-proto && mkdir -p $CG && echo $((32*1024*1024`
+  - `Bash: cd /tmp/claude-0/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/proto && CG=/sys/fs/cgroup/memory/mb-proto && (echo $BASHPID > $CG/cgroup.procs; c`
+  - `Bash: cd /tmp/claude-0/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/proto && swapoff /dev/loop0 && losetup -d /dev/loop0 && fusermount3 -u mnt && slee`
   - `Bash: zcat /proc/config.gz | grep -E "INET_DIAG_DESTROY|CONFIG_NET_SCH_NETEM|CONFIG_NETFILTER_XT|CONFIG_NET_NS=|CONFIG_VETH"; which ss tc ip nft iptables; /usr/bin/py`
   - `TaskCreate: Write acceptance criteria and experiment design doc before results`
   - `TaskCreate: Implement DirectFileStorage and FUSE block export adapter`
@@ -66,54 +66,54 @@ Read them there (those copies are read-only — copy a file elsewhere to modify 
   - `TaskCreate: Open PR with results and final report`
   - `TaskUpdate: 1`
   - `SendUserMessage: Lägesrapport: repot klonat, 149 tester körda (1 fel: `test_lock_failure_is_fatal` antar icke-root – fixas). Miljön är en disponibel Firecracker-VM (root, 8 GiB,`
-  - `Bash: cat /sys/block/vda/queue/rotational /sys/block/vda/queue/logical_block_size; df -T /home/claude | tail -1; mount | grep " / "; cat /etc/os-release | head -2; ap`
-  - `Write: /home/claude/memory-bridge/docs/SWAP-EXPERIMENT.md`
-  - `Bash: cd /home/claude/memory-bridge && git add docs/SWAP-EXPERIMENT.md && git -c user.name="Claude" -c user.email="claude@anthropic.com" commit -q -m "docs: swap expe`
+  - `Bash: cat /sys/block/vda/queue/rotational /sys/block/vda/queue/logical_block_size; df -T /home/<user> | tail -1; mount | grep " / "; cat /etc/os-release | head -2; ap`
+  - `Write: /home/<user>/memory-bridge/docs/SWAP-EXPERIMENT.md`
+  - `Bash: cd /home/<user>/memory-bridge && git add docs/SWAP-EXPERIMENT.md && git -c user.name="Claude" -c user.email="claude@anthropic.com" commit -q -m "docs: swap expe`
   - `TaskUpdate: 1`
   - `TaskUpdate: 2`
-  - `Write: /home/claude/memory-bridge/memory_bridge/direct_file.py`
+  - `Write: /home/<user>/memory-bridge/memory_bridge/direct_file.py`
   - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("memory_bridge/local_disk.py"); s = p.read_text() s = s.replace(''' def close(self): with self._lock: self._`
-  - `Write: /home/claude/memory-bridge/memory_bridge/block_export.py`
+  - `Write: /home/<user>/memory-bridge/memory_bridge/block_export.py`
   - `Bash: cd /usr/lib/python3/dist-packages 2>/dev/null; /usr/bin/python3.12 -c "import fuse, inspect; src=inspect.getsource(fuse.FUSE.__init__); print(src[:3500])"; /usr`
-  - `Bash: cd /home/claude/memory-bridge && python3 - <<'EOF' from pathlib import Path p = Path("memory_bridge/block_export.py"); s = p.read_text() s = s.replace(''' """fu`
-  - `Write: /home/claude/memory-bridge/memory_bridge/block_export_cli.py`
+  - `Bash: cd /home/<user>/memory-bridge && python3 - <<'EOF' from pathlib import Path p = Path("memory_bridge/block_export.py"); s = p.read_text() s = s.replace(''' """fu`
+  - `Write: /home/<user>/memory-bridge/memory_bridge/block_export_cli.py`
 
 **Claude:** Now I'll smoke-test the export against a real loop device.
-  - `Bash: S=/tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad && mkdir -p $S/mnt1 && (/usr/bin/python3.12 -m memory_bridge.block_export_cli $S/mn`
+  - `Bash: S=/tmp/claude-0/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad && mkdir -p $S/mnt1 && (/usr/bin/python3.12 -m memory_bridge.block_export_cli $S/mn`
   - `Bash: sed -i 's/self._started = time.time()/self._started = time.time_ns()/' memory_bridge/block_export.py && grep -n "time_ns" memory_bridge/block_export.py`
-  - `Write: /home/claude/memory-bridge/memory_bridge/pressure_workload.py`
+  - `Write: /home/<user>/memory-bridge/memory_bridge/pressure_workload.py`
   - `Bash: time /usr/bin/python3.12 -m memory_bridge.pressure_workload --dataset-mib 128 --rounds 1 2>&1 | tail -4 | cut -c1-400`
-  - `Write: /home/claude/memory-bridge/memory_bridge/swap_lab.py`
+  - `Write: /home/<user>/memory-bridge/memory_bridge/swap_lab.py`
   - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("memory_bridge/swap_lab.py"); s = p.read_text() old = ''' def read_stderr(): for line in process.stderr: std`
 
 **Claude:** Now a short smoke run of the lab with small sizes and one repetition across all arms.
   - `Bash: mkdir -p /var/tmp/swaplab && time /usr/bin/python3.12 -m memory_bridge.swap_lab --disposable-vm --arms noswap,local-swap,fuse-local,bridge,more-ram --repetition`
   - `Bash: cd /var/tmp/swaplab && python3 -c " import json; r=json.load(open('smoke.json')); print(r['cleanup_failures']); for run in r['runs']: print(run['arm'], run.get(`
-  - `Bash: cd /home/claude/memory-bridge && mkdir -p /var/tmp/swaplab/k && chmod 700 /var/tmp/swaplab/k && /usr/bin/python3.12 -m memory_bridge.launcher keygen /var/tmp/sw`
+  - `Bash: cd /home/<user>/memory-bridge && mkdir -p /var/tmp/swaplab/k && chmod 700 /var/tmp/swaplab/k && /usr/bin/python3.12 -m memory_bridge.launcher keygen /var/tmp/sw`
   - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("memory_bridge/swap_lab.py"); s = p.read_text() old = ''' self.donor = subprocess.Popen([sys.executable, "-m`
   - `Bash: python3 -c " import resource; print(resource.getrlimit(resource.RLIMIT_MEMLOCK)) try: resource.setrlimit(resource.RLIMIT_MEMLOCK,(resource.RLIM_INFINITY,resourc`
   - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("memory_bridge/storage.py"); s = p.read_text() s = s.replace('''import ctypes import mmap import threading c`
   - `Bash: cd /var/tmp/swaplab && python3 -c " import json; r=json.load(open('smoke2.json')) b=r['runs'][0] print(json.dumps(b['after']['export'], indent=1)[:1500]); print`
-  - `Write: /tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/hops.py`
-  - `Bash: cd /home/claude/memory-bridge && /usr/bin/python3.12 -I /tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/hops.py 2>&1 | tail -20`
+  - `Write: /tmp/claude-0/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/hops.py`
+  - `Bash: cd /home/<user>/memory-bridge && /usr/bin/python3.12 -I /tmp/claude-0/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/hops.py 2>&1 | tail -20`
   - `Bash: /usr/bin/python3.12 - <<'EOF' import socket, os, sys, time, struct, subprocess # pure socketpair request/response roundtrip between two python processes, same f`
-  - `Read: /home/claude/memory-bridge/memory_bridge/resilient.py`
-  - `Read: /home/claude/memory-bridge/memory_bridge/resilient.py`
+  - `Read: /home/<user>/memory-bridge/memory_bridge/resilient.py`
+  - `Read: /home/<user>/memory-bridge/memory_bridge/resilient.py`
   - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("memory_bridge/resilient.py"); s = p.read_text() # 1. docstring + constructor old = ''' def __init__(self, l`
   - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("memory_bridge/direct_file.py"); s = p.read_text() old = ''' def __init__(self, size, directory=None, *, max`
   - `Bash: cat memory_bridge/simulation.py && sed -n 1,60p tests/test_resilient.py && sed -n 1,40p tests/test_integration.py`
 
 **Claude:** Now the tests for the new modules.
-  - `Write: /home/claude/memory-bridge/tests/test_direct_file.py`
-  - `Write: /home/claude/memory-bridge/tests/test_write_behind.py`
+  - `Write: /home/<user>/memory-bridge/tests/test_direct_file.py`
+  - `Write: /home/<user>/memory-bridge/tests/test_write_behind.py`
   - `Bash: /usr/bin/python3.12 -m unittest tests.test_write_behind tests.test_direct_file tests.test_resilient -v 2>&1 | tail -25`
-  - `Write: /home/claude/memory-bridge/tests/test_block_export.py`
-  - `Write: /home/claude/memory-bridge/tests/test_swap_lab.py`
+  - `Write: /home/<user>/memory-bridge/tests/test_block_export.py`
+  - `Write: /home/<user>/memory-bridge/tests/test_swap_lab.py`
 
 **Claude:** Now the root-assumption fix in the existing memlock test, then the whole suite.
   - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("tests/test_memory.py"); s = p.read_text() old = ''' def test_lock_failure_is_fatal(self): # A separate proc`
-  - `Bash: pgrep -af nbdkit; pkill -f "nbdkit.*10809"; cd /home/claude/memory-bridge && sed -n 1,60p tests/test_launcher.py`
-  - `Bash: pgrep -a nbdkit || echo none; cd /home/claude/memory-bridge && sed -n 1,60p tests/test_launcher.py`
+  - `Bash: pgrep -af nbdkit; pkill -f "nbdkit.*10809"; cd /home/<user>/memory-bridge && sed -n 1,60p tests/test_launcher.py`
+  - `Bash: pgrep -a nbdkit || echo none; cd /home/<user>/memory-bridge && sed -n 1,60p tests/test_launcher.py`
   - `Bash: cat bridge.py | tail -5 && python3 - <<'EOF' from pathlib import Path p = Path("tests/test_launcher.py"); s = p.read_text() old = ''' with patch("sys.argv", ["b`
   - `Bash: grep -n "memlock\|RLIMIT" tests/test_lab.py tests/test_standalone_package.py | head; /usr/bin/python3.12 run_tests.py --require-integration > /var/tmp/swaplab/t`
   - `Bash: git add -A && git -c user.name="Claude" -c user.email="claude@anthropic.com" commit -q -m "feat: FUSE block export, O_DIRECT local backing, write-behind mirror,`
@@ -131,7 +131,7 @@ Read them there (those copies are read-only — copy a file elsewhere to modify 
   - `ToolSearch: select:Monitor`
   - `Monitor: tail -n +1 -f /var/tmp/swaplab/main.log | grep --line-buffered -E "repetition|EXIT|Traceback|Error|failed"`
   - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("CHANGELOG.md"); s = p.read_text() s = '''## 0.11.0 - Add a FUSE block export (`block-export`) exposing the`
-  - `Write: /home/claude/memory-bridge/docs/SWAP-RESULTAT.md`
+  - `Write: /home/<user>/memory-bridge/docs/SWAP-RESULTAT.md`
   - `Bash: sleep 240; tail -2 /var/tmp/swaplab/main.log`
   - `Bash: until grep -q "EXIT=" /var/tmp/swaplab/main.log; do sleep 5; done; cat /var/tmp/swaplab/main.log | tail -3`
 
@@ -186,11 +186,11 @@ Read them there (those copies are read-only — copy a file elsewhere to modify 
 **You:** <task-notification>
 <task-id>b5zqjxqzp</task-id>
 <tool-use-id>toolu_01TADSPJ6Ep9UG3K6uPPvRhv</tool-use-id>
-<output-file>/tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/tasks/b5zqjxqzp.output</output-file>
+<output-file>/tmp/claude-0/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/tasks/b5zqjxqzp.output</output-file>
 <status>completed</status>
 <summary>Background command "Run the main uniform-pattern experiment (3 repetitions, 6 arms)" completed (exit code 0)</summary>
 </task-notification>
-  - `Bash: cat /var/tmp/swaplab/main.log | tail -5; cd /home/claude/memory-bridge && python3 - <<'EOF' import json, statistics r = json.load(open("docs/experiments/swap-un`
+  - `Bash: cat /var/tmp/swaplab/main.log | tail -5; cd /home/<user>/memory-bridge && python3 - <<'EOF' import json, statistics r = json.load(open("docs/experiments/swap-un`
   - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("memory_bridge/swap_lab.py"); s = p.read_text() old = ''' self.mountpoint = self.workdir / f"mount-{self.nam`
   - `Bash: mv docs/experiments/swap-uniform-2026-10-26.json docs/experiments/swap-uniform-part1.json && /usr/bin/python3.12 -m memory_bridge.swap_lab --disposable-vm --arm`
   - `Bash: git add -A memory_bridge docs/experiments && git -c user.name="Claude" -c user.email="claude@anthropic.com" commit -q -m "fix(swap-lab): unique mountpoint per r`
@@ -205,7 +205,7 @@ Read them there (those copies are read-only — copy a file elsewhere to modify 
 **You:** <task-notification>
 <task-id>a62893539c69c453b</task-id>
 <tool-use-id>toolu_011yAxDWVjqSKBzsM84rCJbZ</tool-use-id>
-<output-file>/tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/tasks/a62893539c69c453b.output</output-file>
+<output-file>/tmp/claude-0/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/tasks/a62893539c69c453b.output</output-file>
 <status>completed</status>
 <summary>Agent "Review error handling and test assumptions" finished</summary>
 <note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
@@ -313,7 +313,7 @@ An EIO on swap-in kills the workload with SIGBUS; `workload` becomes `None`, `ve
 **You:** <task-notification>
 <task-id>bjswdootk</task-id>
 <tool-use-id>toolu_01HCmfNZPE4BEemnW9G4H9rt</tool-use-id>
-<output-file>/tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/tasks/bjswdootk.output</output-file>
+<output-file>/tmp/claude-0/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/tasks/bjswdootk.output</output-file>
 <status>completed</status>
 <summary>Background command "Run repetitions 2-3 of the uniform experiment with rotated order" completed (exit code 0)</summary>
 </task-notification>
@@ -346,27 +346,27 @@ An EIO on swap-in kills the workload with SIGBUS; `workload` becomes `None`, `ve
 **You:** <task-notification>
 <task-id>bgjhmv3s3</task-id>
 <tool-use-id>toolu_016gh5JB2ML2X5AKt6osLhNf</tool-use-id>
-<output-file>/tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/tasks/bgjhmv3s3.output</output-file>
+<output-file>/tmp/claude-0/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/tasks/bgjhmv3s3.output</output-file>
 <status>completed</status>
 <summary>Background command "Run post-review bridge reruns, hotset, faults and slow-disk sensitivity" completed (exit code 0)</summary>
 </task-notification>
   - `Bash: grep -c repetition /var/tmp/swaplab/phase3.log; grep -iE "Traceback|Preflight|failed" /var/tmp/swaplab/phase3.log | head; cat /proc/swaps | wc -l; losetup -l |`
   - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("tests/test_block_export.py"); s = p.read_text() old = '''@unittest.skipUnless(MOUNTABLE, "Requires fusepy,`
-  - `Write: /home/claude/memory-bridge/memory_bridge/swap_report.py`
+  - `Write: /home/<user>/memory-bridge/memory_bridge/swap_report.py`
   - `Bash: /usr/bin/python3.12 -m memory_bridge.swap_report docs/experiments/swap-*.json 2>&1 | tee /var/tmp/swaplab/report.md | head -60`
   - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("memory_bridge/swap_report.py"); s = p.read_text() old = ''' f"| {fmt(median(r['memory']['bridge_peak_concur`
 
 **Claude:** Now the results document with observations separated from conclusions.
   - `Bash: python3 - <<'EOF' import json # gather exact details for the doc r = json.load(open("docs/experiments/swap-uniform-bridge-postreview.json")) print(json.dumps(r[`
-  - `Write: /home/claude/memory-bridge/docs/SWAP-RESULTAT.md`
+  - `Write: /home/<user>/memory-bridge/docs/SWAP-RESULTAT.md`
   - `Bash: sed -i 's/0 verifieringsfel i 23 slutförda swap-körningar/0 verifieringsfel i 30 slutförda swap-körningar/; s/fuse-local ≈ 88 s, bridge ≈ 160 s, bridge-sync ≈ 1`
 
 **Claude:** Now TESTRESULTAT and NULAGE updates, register `swap-report`, then the full strict suite and the installed-package check.
   - `Bash: python3 - <<'EOF' from pathlib import Path p = Path("memory_bridge/__main__.py"); s = p.read_text() s = s.replace(''' "pressure-workload": "pressure_workload",`
-  - `Write: /home/claude/memory-bridge/docs/NULAGE-OCH-NASTA-STEG.md`
+  - `Write: /home/<user>/memory-bridge/docs/NULAGE-OCH-NASTA-STEG.md`
   - `Bash: /usr/bin/python3.12 run_tests.py --require-integration > /var/tmp/swaplab/tests2.log 2>&1; tail -4 /var/tmp/swaplab/tests2.log; grep -E "^(FAIL|ERROR)" /var/tmp`
   - `Bash: sed -i 's/\*\*178 godkända tester, inga överhoppade\*\*/**177 godkända tester, inga överhoppade**/' docs/TESTRESULTAT.md && sed -i 's/- 178 tester utan överhopp`
-  - `Bash: cd /home/claude/memory-bridge && git add -A && git status --short | grep -v "^A\|^M" ; git -c user.name="Claude" -c user.email="claude@anthropic.com" commit -q`
+  - `Bash: cd /home/<user>/memory-bridge && git add -A && git status --short | grep -v "^A\|^M" ; git -c user.name="Claude" -c user.email="claude@anthropic.com" commit -q`
   - `Bash: git log --oneline origin/main..HEAD | cat; git show --stat HEAD | grep recall`
   - `Bash: grep -cE "borrower:[0-9a-f]{64}" .recall/history.md docs/experiments/*.json; grep -rlE "[0-9a-f]{64}" docs/experiments/ | head -3; git log -1 --format=%an origi`
   - `Bash: cat > /var/tmp/swaplab/pr.md <<'EOF' ## Sammanfattning Tar projektet från loopback-labb till ett reproducerbart kernel-swap-experiment i en disponibel VM, med f`
@@ -420,13 +420,13 @@ Notifications are queued for this session (more may arrive before you read them)
 **You:** <task-notification>
 <task-id>a9633f77fb45d3032</task-id>
 <tool-use-id>toolu_01H3QmPEjxcEF1BQuGCvPD6C</tool-use-id>
-<output-file>/tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/tasks/a9633f77fb45d3032.output</output-file>
+<output-file>/tmp/claude-0/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/tasks/a9633f77fb45d3032.output</output-file>
 <status>completed</status>
 <summary>Agent "Review conclusions against raw data" finished</summary>
 <note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
 <result>## Review of PR #5 swap-experiment conclusions vs raw data
 
-All numbers below were recomputed from `docs/experiments/*.json` with small read-only Python snippets. Paths are absolute under `/home/claude/memory-bridge/`.
+All numbers below were recomputed from `docs/experiments/*.json` with small read-only Python snippets. Paths are absolute under `/home/<user>/memory-bridge/`.
 
 ### Priority 1 — factual errors / undisclosed methodology problems
 
@@ -496,7 +496,7 @@ Medians/min–max/p99/swap-in-out for all six uniform arms, the hotset table, bo
 - No document claims RAM savings, LAN results, power-loss durability or production safety; K6 and the "Vad resultaten inte säger" sections are explicit. The only phrasing drifting toward over-claim is "SSD-klassad lagring" (item 11) and the unlabelled crossover (item 7).</result>
 <usage><subagent_tokens>205000</subagent_tokens><tool_uses>33</tool_uses><duration_ms>1053328</duration_ms></usage>
 </task-notification>
-  - `Bash: cp /tmp/claude-0/-home-claude/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/hops.py docs/experiments/latency_probe.py && sed -i 's#sys.path.insert(0, "/home/c`
+  - `Bash: cp /tmp/claude-0/-home-<user>/0aed359f-f5d7-545f-8be9-92accdc2fda5/scratchpad/hops.py docs/experiments/latency_probe.py && sed -i 's#sys.path.insert(0, "/home/c`
   - `Bash: cat >> docs/experiments/latency_probe.py <<'EOF' # Pure socketpair request/response round trip between two Python processes, # with the same framing as remote_n`
 
 **Claude:** Now apply the document corrections from the review.
