@@ -15,3 +15,15 @@ dist/
 *.db-journal
 *.db-wal
 *.db-shm
+
+# privacy-guard: local secrets, logs, and editor state
+.env.*
+!.env.example
+*.log
+logs/
+*.local
+*.local.*
+.vscode/settings.json
+.idea/
+secrets/
+.DS_Store
