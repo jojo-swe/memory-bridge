@@ -1,3 +1,5 @@
+<p align="center"><img src=".github/assets/logo.svg" alt="memory-bridge logo" width="128"></p>
+
 # Memory Bridge — ramverk 0.11.0
 
 ## Hela labbet med ett kommando
